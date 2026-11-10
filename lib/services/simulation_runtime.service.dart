@@ -87,8 +87,16 @@ class SimulationRuntimeService implements IRuntimeService {
 
   @override
   void toggleBit(BitAddress address) {
+    if (_isPhysicalInput(address)) return setInput(address.bit, !_state.input(address.bit));
     final memory = _engine!.memory;
     memory.writeBit(address, !memory.readBit(address));
+    _emit(_state.copyWith(data: _snapshot()));
+  }
+
+  @override
+  void setBit(BitAddress address, bool value) {
+    if (_isPhysicalInput(address)) return setInput(address.bit, value);
+    _engine!.memory.writeBit(address, value);
     _emit(_state.copyWith(data: _snapshot()));
   }
 
@@ -97,6 +105,9 @@ class SimulationRuntimeService implements IRuntimeService {
     _timer?.cancel();
     _states.close();
   }
+
+  /// I:0 is overwritten by the input image every scan, so writes go through [setInput].
+  bool _isPhysicalInput(BitAddress a) => a.file == BitFile.input && a.word == 0;
 
   void _scan(Duration elapsed) {
     final trace = _engine!.scan(elapsed: elapsed);

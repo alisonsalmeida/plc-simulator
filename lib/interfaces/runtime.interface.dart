@@ -20,5 +20,8 @@ abstract class IRuntimeService {
 
   /// Flips one data table bit; works in STOP and RUN.
   void toggleBit(BitAddress address);
+
+  /// Sets one data table bit to [value]; works in STOP and RUN.
+  void setBit(BitAddress address, bool value);
   void dispose();
 }

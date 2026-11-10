@@ -12,6 +12,9 @@ class DataEditController extends Notifier<void> {
       ref.read(runtimeServiceProvider).writeWord(address, value);
 
   void toggleBit(BitAddress address) => ref.read(runtimeServiceProvider).toggleBit(address);
+
+  void setBit(BitAddress address, bool value) =>
+      ref.read(runtimeServiceProvider).setBit(address, value);
 }
 
 final dataEditProvider = NotifierProvider<DataEditController, void>(DataEditController.new);

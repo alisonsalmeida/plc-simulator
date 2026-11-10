@@ -18,6 +18,15 @@ black strokes on a transparent background: the app tints them with the theme col
 (energized / off). Instruction symbols use a 24x32 viewBox (the wire is drawn by the app on
 both sides; timers, counters and RES use 28x24 palette icons, and the app draws their box in the rung itself); the branch icon is only shown in the palette (48x32).
 
+## Supervisório (HMI)
+
+The **Ladder / Supervisório** toggle in the app bar swaps the main area for an internal HMI
+screen. Add widgets from the palette (Botão, Chave, Lâmpada, Display, Barra), each bound to a
+data table address (`B3:0/0`, `T4:0/DN`, `N7:0`, `T4:0.ACC`, ...); addresses are validated with
+the `plc_core` parser. Widgets read and write the live data table in RUN and STOP, like the
+Data Files window. Drag a widget by its label to move it; right-click (or long-press the
+label) for Editar / Excluir. The layout is kept in memory only (no save/load yet).
+
 ## Commands
 
 ```
