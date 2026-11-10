@@ -10,6 +10,7 @@ import '../../controllers/runtime.controller.dart';
 import '../../models/runtime_state.model.dart';
 import '../../controllers/rung_edit.controller.dart';
 import '../data_table/data_table_window.dart';
+import 'components/app_menu_bar.dart';
 import 'components/io_panel.dart';
 import 'components/instruction_toolbar.dart';
 import 'components/ladder_view.dart';
@@ -63,24 +64,10 @@ class EditorPage extends ConsumerWidget {
             },
           );
     return Scaffold(
-      appBar: AppBar(title: const Text('Simulador CLP'), actions: const [RunToolbar()]),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SegmentedButton<MainView>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: MainView.ladder, label: Text('Ladder')),
-                  ButtonSegment(value: MainView.hmi, label: Text('Supervisório')),
-                ],
-                selected: {ref.watch(mainViewProvider)},
-                onSelectionChanged: (v) => ref.read(mainViewProvider.notifier).select(v.first),
-              ),
-            ),
-          ),
+          const AppMenuBar(),
+          const RunToolbar(),
           Expanded(
             child: LayoutBuilder(
               builder: (_, c) => c.maxWidth >= 900

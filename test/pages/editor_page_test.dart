@@ -11,7 +11,7 @@ import 'package:plc_simulator/pages/editor/editor.page.dart';
 
 void main() {
   testWidgets('editor shows the toolbar tabs, END and an example rung', (tester) async {
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = const Size(1400, 1000); // room for the menu bar row
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const ProviderScope(child: MaterialApp(home: EditorPage())));
