@@ -12,6 +12,7 @@ class DataTableController extends Notifier<DataTableState> {
   void hide() => state = state.copyWith(open: false);
   void selectFile(BitFile file) => state = state.copyWith(file: file);
   void setRadix(Radix radix) => state = state.copyWith(radix: radix);
+  void setHeightFraction(double f) => state = state.copyWith(heightFraction: f.clamp(0.15, 0.85));
 }
 
 final dataTableProvider =

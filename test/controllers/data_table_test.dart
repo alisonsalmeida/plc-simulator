@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plc_core/plc_core.dart';
 import 'package:plc_simulator/controllers/data_edit.controller.dart';
+import 'package:plc_simulator/controllers/data_table.controller.dart';
 import 'package:plc_simulator/controllers/program.controller.dart';
 import 'package:plc_simulator/controllers/rung_edit.controller.dart';
 import 'package:plc_simulator/controllers/runtime.controller.dart';
@@ -62,5 +63,19 @@ void main() {
     runtime.step();
     await settle();
     expect(container.read(runtimeProvider).word(WordAddress.parse('N7:0')), 0);
+  });
+
+  test('heightFraction defaults to 0.4, clamps to [0.15, 0.85] and survives hide/show', () {
+    final table = container.read(dataTableProvider.notifier);
+    expect(container.read(dataTableProvider).heightFraction, 0.4);
+    table.setHeightFraction(0.01);
+    expect(container.read(dataTableProvider).heightFraction, 0.15);
+    table.setHeightFraction(2);
+    expect(container.read(dataTableProvider).heightFraction, 0.85);
+    table.setHeightFraction(0.6);
+    table.show();
+    table.hide();
+    table.show();
+    expect(container.read(dataTableProvider).heightFraction, 0.6);
   });
 }

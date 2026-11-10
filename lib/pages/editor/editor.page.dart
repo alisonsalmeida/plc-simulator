@@ -10,6 +10,7 @@ import '../data_table/data_table_window.dart';
 import 'components/io_panel.dart';
 import 'components/instruction_toolbar.dart';
 import 'components/ladder_view.dart';
+import 'components/pane_splitter.dart';
 import 'components/run_toolbar.dart';
 
 class EditorPage extends ConsumerWidget {
@@ -34,13 +35,23 @@ class EditorPage extends ConsumerWidget {
       ]),
     );
     // The Data Files window sits outside the Focus so the Delete key never reaches it.
-    final ladder = Column(children: [
-      Expanded(flex: 3, child: toolbarAndLadder),
-      if (dataOpen) ...[
-        const Divider(height: 1),
-        const Expanded(flex: 2, child: DataTableWindow()),
-      ],
-    ]);
+    final ladder = LayoutBuilder(
+      builder: (_, c) {
+        if (!dataOpen) return toolbarAndLadder;
+        final total = c.maxHeight;
+        final fraction = ref.watch(dataTableProvider.select((s) => s.heightFraction));
+        final paneHeight = (total - PaneSplitter.thickness) * fraction;
+        return Column(children: [
+          Expanded(child: toolbarAndLadder),
+          PaneSplitter(
+            onDrag: (dy) => ref
+                .read(dataTableProvider.notifier)
+                .setHeightFraction((paneHeight - dy) / (total - PaneSplitter.thickness)),
+          ),
+          SizedBox(height: paneHeight, child: const DataTableWindow()),
+        ]);
+      },
+    );
     return Scaffold(
       appBar: AppBar(title: const Text('Simulador CLP'), actions: const [RunToolbar()]),
       body: LayoutBuilder(

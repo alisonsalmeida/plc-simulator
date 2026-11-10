@@ -5,7 +5,9 @@ import 'package:plc_core/plc_core.dart';
 import 'package:plc_simulator/controllers/program.controller.dart';
 import 'package:plc_simulator/controllers/runtime.controller.dart';
 import 'package:plc_simulator/core/examples.dart';
+import 'package:plc_simulator/pages/data_table/data_table_window.dart';
 import 'package:plc_simulator/pages/editor/components/instruction_dialog.dart';
+import 'package:plc_simulator/pages/editor/components/pane_splitter.dart';
 import 'package:plc_simulator/pages/editor/editor.page.dart';
 
 Future<ProviderContainer> pumpEditor(WidgetTester tester) async {
@@ -68,6 +70,17 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('data-close')));
     await tester.pump();
     expect(find.byKey(const ValueKey('file-N7')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dragging the splitter up grows the Data Files pane', (tester) async {
+    await pumpEditor(tester);
+    await tester.tap(find.text('Data Files'));
+    await tester.pump();
+    final before = tester.getSize(find.byType(DataTableWindow)).height;
+    await tester.drag(find.byType(PaneSplitter), const Offset(0, -100));
+    await tester.pump();
+    expect(tester.getSize(find.byType(DataTableWindow)).height, greaterThan(before));
     expect(tester.takeException(), isNull);
   });
 

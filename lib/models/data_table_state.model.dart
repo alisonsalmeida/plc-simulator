@@ -8,6 +8,7 @@ class DataTableState {
     this.open = false,
     this.file = BitFile.integer,
     this.radix = Radix.decimal,
+    this.heightFraction = 0.4,
   });
 
   final bool open;
@@ -18,9 +19,13 @@ class DataTableState {
   /// Base of the integer file's words.
   final Radix radix;
 
-  DataTableState copyWith({bool? open, BitFile? file, Radix? radix}) => DataTableState(
+  /// Share of the editor's height taken by the window when open.
+  final double heightFraction;
+
+  DataTableState copyWith({bool? open, BitFile? file, Radix? radix, double? heightFraction}) => DataTableState(
         open: open ?? this.open,
         file: file ?? this.file,
         radix: radix ?? this.radix,
+        heightFraction: heightFraction ?? this.heightFraction,
       );
 }
