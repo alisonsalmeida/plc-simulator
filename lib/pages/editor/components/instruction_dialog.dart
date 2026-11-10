@@ -110,8 +110,10 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   String? _offsetError;
 
   bool get _isTimer => const {'TON', 'TOF', 'RTO'}.contains(widget.mnemonic);
-  bool get _isMath => const {'ADD', 'SUB', 'MUL', 'DIV', 'NEG', 'SQR', 'SCL'}.contains(widget.mnemonic);
-  bool get _isBinaryMath => const {'ADD', 'SUB', 'MUL', 'DIV'}.contains(widget.mnemonic);
+  // Logic instructions share the math dialog layout: Source A, Source B, Destination.
+  bool get _isMath =>
+      const {'ADD', 'SUB', 'MUL', 'DIV', 'NEG', 'SQR', 'SCL', 'AND', 'OR', 'XOR', 'NOT'}.contains(widget.mnemonic);
+  bool get _isBinaryMath => const {'ADD', 'SUB', 'MUL', 'DIV', 'AND', 'OR', 'XOR'}.contains(widget.mnemonic);
   bool get _isWord => const {'MOV', 'MVM', 'CLR'}.contains(widget.mnemonic) || _isMath;
   bool get _isLimit => widget.mnemonic == 'LIM';
   bool get _isCompare => const {'EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ'}.contains(widget.mnemonic);
@@ -124,7 +126,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         'TON' || 'TOF' || 'RTO' => 'T4:0',
         'CTU' || 'CTD' => 'C5:0',
         'RES' => 'T4:0 ou C5:0',
-        'MOV' || 'MVM' || 'CLR' || 'ADD' || 'SUB' || 'MUL' || 'DIV' || 'NEG' || 'SQR' || 'SCL' || 'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'N7:0',
+        'MOV' || 'MVM' || 'CLR' || 'ADD' || 'SUB' || 'MUL' || 'DIV' || 'NEG' || 'SQR' || 'SCL' || 'AND' || 'OR' || 'XOR' || 'NOT' || 'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'N7:0',
         'LIM' => 'N7:0 ou 50',
         _ => 'I:0/0',
       };
@@ -202,7 +204,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         decoration: InputDecoration(
           labelText: switch (widget.mnemonic) {
             'LIM' => 'Limite inferior',
-            'ADD' || 'SUB' || 'MUL' || 'DIV' => 'Origem A',
+            'ADD' || 'SUB' || 'MUL' || 'DIV' || 'AND' || 'OR' || 'XOR' => 'Origem A',
             'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'Origem B',
             _ => 'Origem',
           },

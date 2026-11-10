@@ -48,6 +48,11 @@ Map<String, Object?> _instructionToJson(Instruction i) {
       json['mask'] = sourceB.toString();
     case UnaryMathInstruction(:final source):
       json['source'] = source.toString();
+    case BinaryLogicInstruction(:final sourceA, :final sourceB):
+      json['source'] = sourceA.toString();
+      json['mask'] = sourceB.toString();
+    case Not(:final source):
+      json['source'] = source.toString();
     case Scl(:final source, :final rate, :final offset):
       json['source'] = source.toString();
       json['mask'] = rate.toString();

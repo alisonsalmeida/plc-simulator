@@ -208,8 +208,27 @@ class ScanEngine {
         memory.writeWord(dest, 0);
       case final MathInstruction m:
         _math(m);
+      case final LogicInstruction l:
+        _logic(l);
     }
     return power;
+  }
+
+  /// Runs a bitwise logic instruction on signed 16-bit words and updates `S:0/0..3`
+  /// (carry and overflow are cleared).
+  void _logic(LogicInstruction l) {
+    final v = _value;
+    final int result = switch (l) {
+      And(:final sourceA, :final sourceB) => (v(sourceA) & v(sourceB)).toSigned(16),
+      Or(:final sourceA, :final sourceB) => (v(sourceA) | v(sourceB)).toSigned(16),
+      Xor(:final sourceA, :final sourceB) => (v(sourceA) ^ v(sourceB)).toSigned(16),
+      Not(:final source) => (~v(source)).toSigned(16),
+    };
+    memory.writeWord(l.dest, result);
+    memory.writeBit(carryBit, false);
+    memory.writeBit(overflowBit, false);
+    memory.writeBit(zeroBit, result == 0);
+    memory.writeBit(signBit, result < 0);
   }
 
   /// Runs a math instruction and updates `S:0/0..3`. A result outside 16 bits is clamped to

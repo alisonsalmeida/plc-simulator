@@ -42,6 +42,10 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'MOV': 'MOV – Mover',
     'MVM': 'MVM – Mover com máscara',
     'CLR': 'CLR – Zerar',
+    'AND': 'AND – E bit a bit',
+    'OR': 'OR – OU bit a bit',
+    'XOR': 'XOR – OU exclusivo bit a bit',
+    'NOT': 'NOT – Inverter bits',
   };
 
   static const _compareTools = {

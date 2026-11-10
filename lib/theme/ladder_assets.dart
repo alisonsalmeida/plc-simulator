@@ -40,6 +40,10 @@ abstract final class LadderAssets {
     'NEG': 'assets/ladder/neg.svg',
     'SQR': 'assets/ladder/sqr.svg',
     'SCL': 'assets/ladder/scl.svg',
+    'AND': 'assets/ladder/and.svg',
+    'OR': 'assets/ladder/or.svg',
+    'XOR': 'assets/ladder/xor.svg',
+    'NOT': 'assets/ladder/not.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

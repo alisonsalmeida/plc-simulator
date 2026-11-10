@@ -7,6 +7,7 @@
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
+- [x] Bitwise logic instructions: AND, OR, XOR, NOT (Move/Logical tab)
 - [x] Header menu bar with RSLogix menus: File, Edit, View, PLC, Help
 - [x] Save/load programs as JSON
 - [x] Internal HMI (supervisory) screen bound to data table tags

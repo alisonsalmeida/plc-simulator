@@ -86,6 +86,10 @@ class BoxCell extends StatelessWidget {
         Neg() => 'Negate',
         Sqr() => 'Square Root',
         Scl() => 'Scale',
+        And() => 'Bitwise AND',
+        Or() => 'Bitwise Inclusive OR',
+        Xor() => 'Bitwise Exclusive OR',
+        Not() => 'Logical NOT',
         _ => '',
       };
 
@@ -197,6 +201,15 @@ class BoxCell extends StatelessWidget {
         BinaryMathInstruction() => [
             ..._operandRows('Source A', ins.sourceA),
             ..._operandRows('Source B', ins.sourceB),
+            ..._operandRows('Dest', ins.dest),
+          ],
+        BinaryLogicInstruction() => [
+            ..._operandRows('Source A', ins.sourceA),
+            ..._operandRows('Source B', ins.sourceB),
+            ..._operandRows('Dest', ins.dest),
+          ],
+        Not() => [
+            ..._operandRows('Source', ins.source),
             ..._operandRows('Dest', ins.dest),
           ],
         UnaryMathInstruction() => [
