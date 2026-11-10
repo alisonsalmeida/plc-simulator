@@ -79,6 +79,13 @@ class BoxCell extends StatelessWidget {
         Grt() => 'Greater Than',
         Geq() => 'Grtr Than or Eql',
         Lim() => 'Limit Test',
+        Add() => 'Add',
+        Sub() => 'Subtract',
+        Mul() => 'Multiply',
+        Div() => 'Divide',
+        Neg() => 'Negate',
+        Sqr() => 'Square Root',
+        Scl() => 'Scale',
         _ => '',
       };
 
@@ -187,6 +194,21 @@ class BoxCell extends StatelessWidget {
             ..._operandRows('Dest', ins.dest),
           ],
         Clr() => _operandRows('Dest', ins.dest),
+        BinaryMathInstruction() => [
+            ..._operandRows('Source A', ins.sourceA),
+            ..._operandRows('Source B', ins.sourceB),
+            ..._operandRows('Dest', ins.dest),
+          ],
+        UnaryMathInstruction() => [
+            ..._operandRows('Source', ins.source),
+            ..._operandRows('Dest', ins.dest),
+          ],
+        Scl() => [
+            ..._operandRows('Source', ins.source),
+            ..._operandRows('Rate [/10000]', ins.rate),
+            ..._operandRows('Offset', ins.offset),
+            ..._operandRows('Dest', ins.dest),
+          ],
       };
 
   List<(String, String)> _operandRows(String label, Operand o, {bool hex = false}) => switch (o) {

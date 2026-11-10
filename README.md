@@ -11,7 +11,7 @@ XX Spec: `literatus/docs/plc-simulator-mvp-spec.md`.
 
 ## Assets
 
-Ladder symbols are SVG files in `assets/ladder/` (`xic`, `xio`, `ote`, `otl`, `otu`, `ton`, `tof`, `rto`, `ctu`, `ctd`, `res`, `mov`, `mvm`, `clr`, `equ`, `neq`, `les`, `leq`, `grt`, `geq`, `lim`, `branch`).
+Ladder symbols are SVG files in `assets/ladder/` (`xic`, `xio`, `ote`, `otl`, `otu`, `ton`, `tof`, `rto`, `ctu`, `ctd`, `res`, `mov`, `mvm`, `clr`, `equ`, `neq`, `les`, `leq`, `grt`, `geq`, `lim`, `add`, `sub`, `mul`, `div`, `neg`, `sqr`, `scl`, `branch`).
 `lib/theme/ladder_assets.dart` is the only mapping from mnemonic to file and is used by both
 the rung view and the palette. To change a symbol, replace its SVG (or edit that map). Draw
 black strokes on a transparent background: the app tints them with the theme colors

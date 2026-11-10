@@ -17,7 +17,7 @@ class ElementEditController extends Notifier<void> {
       _edit(rung, (r) => addBranchPath(r, branchPath, first));
 
   /// Keeps the instruction's mnemonic and changes its [address]; [timeBase] and [preset]
-  /// apply to timers and counters, [source] and [mask] to MOV and MVM.
+  /// apply to timers and counters, [source] and [mask] to MOV and MVM, [offset] to SCL.
   void updateInstruction(
     int rung,
     List<int> path,
@@ -26,6 +26,7 @@ class ElementEditController extends Notifier<void> {
     int preset = 0,
     String source = '',
     String mask = '',
+    String offset = '',
   }) =>
       _edit(rung, (r) {
         final old = elementAt(r, path) as Instruction;
@@ -39,6 +40,7 @@ class ElementEditController extends Notifier<void> {
             preset: preset,
             source: source,
             mask: mask,
+            offset: offset,
           ),
         );
       });

@@ -231,5 +231,38 @@ final ladderExamples = <LadderExample>[
       symbols: const {'N7:0': 'NIVEL_TANQUE', 'O:0/0': 'ALARME_ALTO', 'O:0/1': 'ALARME_BAIXO', 'O:0/2': 'NIVEL_NORMAL'},
     ),
   ),
+  LadderExample(
+    name: 'Escalonamento analógico (SCL/ADD/DIV)',
+    program: Program(
+      [
+        Rung(
+          [Xic('I:0/0'), Scl('N7:0', '610', '0', 'N7:1')],
+          title: 'ESCALONAMENTO ANALÓGICO',
+          comment: 'Ligue S1 e escreva em N7:0 o valor bruto do sensor (0 a 16383) na janela Data Files. '
+              'SCL: N7:1 = N7:0 x 610 / 10000, ou seja, 0 a 1000 (aproximadamente).',
+        ),
+        Rung(
+          [Xic('I:0/0'), Add('N7:1', '5', 'N7:2')],
+          comment: 'ADD: soma a constante de calibração (5) ao valor escalonado.',
+        ),
+        Rung(
+          [Xic('I:0/0'), Div('N7:2', '10', 'N7:3')],
+          comment: 'DIV: divide por 10; o resultado é arredondado para o inteiro mais próximo.',
+        ),
+        Rung(
+          [Grt('N7:3', '50'), Ote('O:0/0')],
+          comment: 'GRT: com N7:3 acima de 50 a lâmpada de nível alto acende.',
+        ),
+      ],
+      symbols: const {
+        'I:0/0': 'S1_HABILITA',
+        'N7:0': 'SENSOR_BRUTO',
+        'N7:1': 'ESCALONADO',
+        'N7:2': 'CALIBRADO',
+        'N7:3': 'VALOR_FINAL',
+        'O:0/0': 'NIVEL_ALTO',
+      },
+    ),
+  ),
   LadderExample(name: 'Novo programa', program: const Program([])),
 ];

@@ -3,7 +3,7 @@
 enum BitFile {
   output('O', 1),
   input('I', 1),
-  status('S', 2),
+  status('S', 6),
   bit('B3', 16),
   timer('T4', 16, stride: 3, bitNames: {'EN': 15, 'TT': 14, 'DN': 13}),
   counter('C5', 16, stride: 3, bitNames: {'CU': 15, 'CD': 14, 'DN': 13, 'OV': 12, 'UN': 11}),

@@ -1,9 +1,22 @@
+import 'dart:math';
+
 import 'address.dart';
 import 'memory.dart';
 import 'program.dart';
 
 /// `S:1/15` — set during the first scan after going to RUN.
 const firstScanBit = BitAddress(BitFile.status, 1, 15);
+
+/// Arithmetic flags in `S:0`: carry, overflow, zero, sign.
+const carryBit = BitAddress(BitFile.status, 0, 0);
+const overflowBit = BitAddress(BitFile.status, 0, 1);
+const zeroBit = BitAddress(BitFile.status, 0, 2);
+const signBit = BitAddress(BitFile.status, 0, 3);
+
+/// `S:5/0` — minor error: math overflow trap. A real SLC 500 faults the processor when it
+/// is set at the end of the scan; this simulator deviates: it only latches the bit until
+/// the user clears it, and never faults.
+const overflowTrapBit = BitAddress(BitFile.status, 5, 0);
 
 /// Power flow of one scan: for each rung, the power out of every instruction in traversal
 /// order (left to right, branch paths top to bottom).
@@ -193,8 +206,62 @@ class ScanEngine {
         memory.writeWord(dest, (memory.readWord(dest) & ~m) | (value(source) & m));
       case Clr(:final dest):
         memory.writeWord(dest, 0);
+      case final MathInstruction m:
+        _math(m);
     }
     return power;
+  }
+
+  /// Runs a math instruction and updates `S:0/0..3`. A result outside 16 bits is clamped to
+  /// 32767 / -32768 and sets overflow (S:0/1) and the trap bit S:5/0. The math register
+  /// S:13 / S:14 is not modelled.
+  void _math(MathInstruction m) {
+    final v = _value;
+    var carry = false;
+    var overflow = false;
+    int result;
+    switch (m) {
+      case Add(:final sourceA, :final sourceB):
+        result = v(sourceA) + v(sourceB);
+        carry = (v(sourceA) & 0xFFFF) + (v(sourceB) & 0xFFFF) > 0xFFFF;
+      case Sub(:final sourceA, :final sourceB):
+        result = v(sourceA) - v(sourceB);
+        carry = (v(sourceA) & 0xFFFF) < (v(sourceB) & 0xFFFF);
+      case Mul(:final sourceA, :final sourceB):
+        result = v(sourceA) * v(sourceB);
+      case Div(:final sourceA, :final sourceB):
+        final b = v(sourceB);
+        if (b == 0) {
+          result = 32767;
+          overflow = true;
+        } else {
+          result = _roundedDiv(v(sourceA), b);
+        }
+      case Neg(:final source):
+        result = -v(source);
+      case Sqr(:final source):
+        final x = v(source);
+        carry = x < 0;
+        result = sqrt(x.abs()).round();
+      case Scl(:final source, :final rate, :final offset):
+        result = _roundedDiv(v(source) * v(rate) + v(offset) * 10000, 10000);
+    }
+    if (result > 32767 || result < -32768) {
+      result = result > 0 ? 32767 : -32768;
+      overflow = true;
+    }
+    memory.writeWord(m.dest, result);
+    memory.writeBit(carryBit, carry);
+    memory.writeBit(overflowBit, overflow);
+    memory.writeBit(zeroBit, result == 0);
+    memory.writeBit(signBit, result < 0);
+    if (overflow) memory.writeBit(overflowTrapBit, true);
+  }
+
+  /// [n] / [d] rounded to the nearest integer, halves away from zero.
+  static int _roundedDiv(int n, int d) {
+    final q = (2 * n.abs() + d.abs()) ~/ (2 * d.abs());
+    return (n < 0) != (d < 0) ? -q : q;
   }
 
   bool _reset(ElementAddress el, bool power) {

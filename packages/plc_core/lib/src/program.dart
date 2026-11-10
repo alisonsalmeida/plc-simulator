@@ -33,7 +33,11 @@ sealed class Instruction extends RungElement {
   /// word; [source] and [mask] are word addresses or constants, the mask may be hex);
   /// EQU, NEQ, LES, LEQ, GRT, GEQ ([address] is Source A, a word address; [source] is
   /// Source B); LIM ([source] is the low limit, [address] the test value, [mask] the high
-  /// limit; each a word address or constant). The extra arguments are ignored where they
+  /// limit; each a word address or constant); ADD, SUB, MUL, DIV ([source] is Source A,
+  /// [mask] Source B, [address] the destination word); NEG, SQR ([source] is the source,
+  /// [address] the destination); SCL ([source] is the source, [mask] the rate, [offset]
+  /// the offset, [address] the destination; each source operand a word address or constant).
+  /// The extra arguments are ignored where they
   /// do not apply.
   ///
   /// Throws [ArgumentError] for an unknown mnemonic or a preset outside 0..[maxPreset], and
@@ -45,6 +49,7 @@ sealed class Instruction extends RungElement {
     int preset = 0,
     String source = '',
     String mask = '',
+    String offset = '',
   }) =>
       switch (mnemonic.toUpperCase()) {
         'XIC' => Xic(address),
@@ -68,6 +73,13 @@ sealed class Instruction extends RungElement {
         'GRT' => Grt(address, source),
         'GEQ' => Geq(address, source),
         'LIM' => Lim(source, address, mask),
+        'ADD' => Add(source, mask, address),
+        'SUB' => Sub(source, mask, address),
+        'MUL' => Mul(source, mask, address),
+        'DIV' => Div(source, mask, address),
+        'NEG' => Neg(source, address),
+        'SQR' => Sqr(source, address),
+        'SCL' => Scl(source, mask, offset, address),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -252,6 +264,98 @@ final class Clr extends WordInstruction {
 
   @override
   String get mnemonic => 'CLR';
+}
+
+/// Math instructions: they run every scan while the rung is true, write the destination word
+/// (signed 16-bit, clamped on overflow) and update the arithmetic flags `S:0/0..3`. They are
+/// outputs; power passes through unchanged.
+sealed class MathInstruction extends WordInstruction {
+  MathInstruction(super.dest);
+
+  /// The source operands in the order RSLogix shows them (labels are the box's concern).
+  List<Operand> get operands;
+}
+
+/// Two-source math instruction: dest = A op B.
+sealed class BinaryMathInstruction extends MathInstruction {
+  BinaryMathInstruction(String sourceA, String sourceB, super.dest)
+      : sourceA = Operand.parse(sourceA),
+        sourceB = Operand.parse(sourceB);
+
+  final Operand sourceA;
+  final Operand sourceB;
+
+  @override
+  List<Operand> get operands => [sourceA, sourceB];
+}
+
+/// Add: dest = A + B.
+final class Add extends BinaryMathInstruction {
+  Add(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'ADD';
+}
+
+/// Subtract: dest = A - B.
+final class Sub extends BinaryMathInstruction {
+  Sub(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'SUB';
+}
+
+/// Multiply: dest = A * B.
+final class Mul extends BinaryMathInstruction {
+  Mul(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'MUL';
+}
+
+/// Divide: dest = A / B, rounded to the nearest integer (halves away from zero).
+final class Div extends BinaryMathInstruction {
+  Div(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'DIV';
+}
+
+/// Single-source math instruction.
+sealed class UnaryMathInstruction extends MathInstruction {
+  UnaryMathInstruction(String source, super.dest) : source = Operand.parse(source);
+
+  final Operand source;
+
+  @override
+  List<Operand> get operands => [source];
+}
+
+/// Negate: dest = -source.
+final class Neg extends UnaryMathInstruction {
+  Neg(super.source, super.dest);
+  @override
+  String get mnemonic => 'NEG';
+}
+
+/// Square root: dest = round(sqrt(|source|)); a negative source sets the carry flag.
+final class Sqr extends UnaryMathInstruction {
+  Sqr(super.source, super.dest);
+  @override
+  String get mnemonic => 'SQR';
+}
+
+/// Scale: dest = round(source * rate / 10000 + offset).
+final class Scl extends MathInstruction {
+  Scl(String source, String rate, String offset, super.dest)
+      : source = Operand.parse(source),
+        rate = Operand.parse(rate),
+        offset = Operand.parse(offset);
+
+  final Operand source;
+  final Operand rate;
+  final Operand offset;
+
+  @override
+  List<Operand> get operands => [source, rate, offset];
+  @override
+  String get mnemonic => 'SCL';
 }
 
 /// Compare instructions: input (condition) instructions that pass power when the

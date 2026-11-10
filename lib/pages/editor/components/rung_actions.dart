@@ -30,6 +30,7 @@ class RungActions {
       preset: input.preset,
       source: input.source,
       mask: input.mask,
+      offset: input.offset,
     );
   }
 
@@ -60,6 +61,8 @@ class RungActions {
       },
       source: switch (ins) {
         Mov(:final source) || Mvm(:final source) => source.format(),
+        BinaryMathInstruction(:final sourceA) => sourceA.format(),
+        UnaryMathInstruction(:final source) || Scl(:final source) => source.format(),
         CompareInstruction(:final sourceB) => sourceB.format(),
         Lim(:final low) => low.format(),
         _ => '',
@@ -67,6 +70,12 @@ class RungActions {
       mask: switch (ins) {
         Mvm(:final mask) => mask.format(hex: true),
         Lim(:final high) => high.format(),
+        BinaryMathInstruction(:final sourceB) => sourceB.format(),
+        Scl(:final rate) => rate.format(),
+        _ => '',
+      },
+      offset: switch (ins) {
+        Scl(:final offset) => offset.format(),
         _ => '',
       },
       canDelete: true,
@@ -85,6 +94,7 @@ class RungActions {
       preset: input.preset,
       source: input.source,
       mask: input.mask,
+      offset: input.offset,
     );
     final names = ref.read(rungEditProvider.notifier);
     names.setSymbol(input.address, input.symbol);
