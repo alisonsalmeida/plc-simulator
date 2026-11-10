@@ -13,6 +13,15 @@ class ProgramController extends Notifier<ProgramState> {
   /// Loads a copy of the example at [index] as the current program (no rung selected).
   void select(int index) => state = ProgramState(examples: state.examples, selected: index);
 
+  /// Loads [program] from a file: like selecting an example, the runtime restarts in STOP
+  /// with clean data. The selected example stays as the baseline; no rung is selected.
+  void loadProgram(Program program) => state = ProgramState(
+        examples: state.examples,
+        selected: state.selected,
+        program: program,
+        loadCount: state.loadCount + 1,
+      );
+
   /// Replaces the program; the selection is dropped if its rung no longer exists.
   void replaceProgram(Program program) {
     final rung = state.selectedRung;

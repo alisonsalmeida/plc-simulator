@@ -36,7 +36,9 @@ sealed class Instruction extends RungElement {
   /// limit; each a word address or constant); ADD, SUB, MUL, DIV ([source] is Source A,
   /// [mask] Source B, [address] the destination word); NEG, SQR ([source] is the source,
   /// [address] the destination); SCL ([source] is the source, [mask] the rate, [offset]
-  /// the offset, [address] the destination; each source operand a word address or constant).
+  /// the offset, [address] the destination; each source operand a word address or constant);
+  /// AND, OR, XOR ([source] is Source A, [mask] Source B, [address] the destination word);
+  /// NOT ([source] is the source, [address] the destination).
   /// The extra arguments are ignored where they
   /// do not apply.
   ///
@@ -80,6 +82,10 @@ sealed class Instruction extends RungElement {
         'NEG' => Neg(source, address),
         'SQR' => Sqr(source, address),
         'SCL' => Scl(source, mask, offset, address),
+        'AND' => And(source, mask, address),
+        'OR' => Or(source, mask, address),
+        'XOR' => Xor(source, mask, address),
+        'NOT' => Not(source, address),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -356,6 +362,62 @@ final class Scl extends MathInstruction {
   List<Operand> get operands => [source, rate, offset];
   @override
   String get mnemonic => 'SCL';
+}
+
+/// Bitwise logic instructions: they run every scan while the rung is true, write the
+/// destination word and update the flags `S:0/0..3` (carry and overflow cleared). They are
+/// outputs; power passes through unchanged.
+sealed class LogicInstruction extends WordInstruction {
+  LogicInstruction(super.dest);
+
+  /// The source operands in the order RSLogix shows them (labels are the box's concern).
+  List<Operand> get operands;
+}
+
+/// Two-source logic instruction: dest = A op B (the second source is the mask).
+sealed class BinaryLogicInstruction extends LogicInstruction {
+  BinaryLogicInstruction(String sourceA, String sourceB, super.dest)
+      : sourceA = Operand.parse(sourceA),
+        sourceB = Operand.parse(sourceB);
+
+  final Operand sourceA;
+  final Operand sourceB;
+
+  @override
+  List<Operand> get operands => [sourceA, sourceB];
+}
+
+/// Bitwise AND: dest = A & B.
+final class And extends BinaryLogicInstruction {
+  And(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'AND';
+}
+
+/// Bitwise OR: dest = A | B.
+final class Or extends BinaryLogicInstruction {
+  Or(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'OR';
+}
+
+/// Bitwise exclusive OR: dest = A ^ B.
+final class Xor extends BinaryLogicInstruction {
+  Xor(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'XOR';
+}
+
+/// Bitwise NOT (one's complement): dest = ~source.
+final class Not extends LogicInstruction {
+  Not(String source, super.dest) : source = Operand.parse(source);
+
+  final Operand source;
+
+  @override
+  List<Operand> get operands => [source];
+  @override
+  String get mnemonic => 'NOT';
 }
 
 /// Compare instructions: input (condition) instructions that pass power when the

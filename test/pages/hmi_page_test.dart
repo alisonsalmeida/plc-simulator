@@ -128,7 +128,7 @@ void main() {
 
     await tester.longPress(find.byKey(ValueKey('hmi-handle-$id')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Editar'));
+    await tester.tap(find.text('Editar').last); // the popup item; the first is the menu bar
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('hmi-label')), 'Tanque');
     await tester.tap(find.text('OK'));

@@ -2,13 +2,15 @@
 
 ## Next
 
-- [ ] RSLogix-style window chrome, stage 2: menus, project tree, data files, find/replace, status bar
-- [ ] Save/load programs as JSON
+- [ ] RSLogix-style window chrome, stage 2: project tree, data files, find/replace, status bar
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
 - [x] Analog I/O: input sliders in the I/O panel (volts / mA) and analog output example (AO module, desktop app)
 - [x] Desktop app target instead of web (`flutter build linux` verified)
+- [x] Bitwise logic instructions: AND, OR, XOR, NOT (Move/Logical tab)
+- [x] Header menu bar with RSLogix menus: File, Edit, View, PLC, Help
+- [x] Save/load programs as JSON
 - [x] Internal HMI (supervisory) screen bound to data table tags
 - [x] Resizable Data Table pane height (drag to grow or shrink)
 - [x] Data table view and data movement instructions (N7, MOV/MVM/CLR, Data Files window)

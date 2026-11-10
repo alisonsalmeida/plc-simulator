@@ -61,8 +61,8 @@ class RungActions {
       },
       source: switch (ins) {
         Mov(:final source) || Mvm(:final source) => source.format(),
-        BinaryMathInstruction(:final sourceA) => sourceA.format(),
-        UnaryMathInstruction(:final source) || Scl(:final source) => source.format(),
+        BinaryMathInstruction(:final sourceA) || BinaryLogicInstruction(:final sourceA) => sourceA.format(),
+        UnaryMathInstruction(:final source) || Scl(:final source) || Not(:final source) => source.format(),
         CompareInstruction(:final sourceB) => sourceB.format(),
         Lim(:final low) => low.format(),
         _ => '',
@@ -70,7 +70,7 @@ class RungActions {
       mask: switch (ins) {
         Mvm(:final mask) => mask.format(hex: true),
         Lim(:final high) => high.format(),
-        BinaryMathInstruction(:final sourceB) => sourceB.format(),
+        BinaryMathInstruction(:final sourceB) || BinaryLogicInstruction(:final sourceB) => sourceB.format(),
         Scl(:final rate) => rate.format(),
         _ => '',
       },
