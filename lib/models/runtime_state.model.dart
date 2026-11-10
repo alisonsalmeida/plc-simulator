@@ -37,6 +37,9 @@ class RuntimeState {
   int pre(ElementAddress e) => toInt16(_word(e.file, e.presetIndex));
   int acc(ElementAddress e) => toInt16(_word(e.file, e.accumIndex));
 
+  /// Value (signed 16-bit) of a word operand after the last scan.
+  int word(WordAddress a) => toInt16(_word(a.file, a.index));
+
   int _word(BitFile file, int index) => data[file]?[index] ?? 0;
 
   RuntimeState copyWith({

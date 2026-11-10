@@ -35,7 +35,7 @@ double _seriesWidth(List<RungElement> elements) =>
     (elements.length + 1) * _slotW + elements.fold(0.0, (w, e) => w + _elementWidth(e));
 
 double _elementWidth(RungElement e) => switch (e) {
-      Ton() || Tof() || Rto() || Ctu() || Ctd() => boxCellW,
+      Ton() || Tof() || Rto() || Ctu() || Ctd() || WordInstruction() => boxCellW,
       Instruction() => _cellW,
       Branch(:final paths) =>
         2 * _joinW + paths.fold(0.0, (w, p) => w > _seriesWidth(p) ? w : _seriesWidth(p)),
@@ -65,7 +65,7 @@ double _cellTop(Instruction ins, Program program) {
       (_isBox(ins) ? boxWireY - _glyphH / 2 : _lineH);
 }
 
-bool _isBox(RungElement e) => e is BoxInstruction && e is! Res;
+bool _isBox(RungElement e) => (e is BoxInstruction && e is! Res) || e is WordInstruction;
 
 /// Height of a series above its wire: the tallest cell (a branch counts as its first path).
 double _seriesTop(List<RungElement> elements, Program program) {
@@ -372,7 +372,7 @@ class _Ladder {
       Ote(:final address) || Otl(:final address) => runtime.bit(address),
       Otu() || Res() => powerOut,
       // Boxes are highlighted by BoxCell from their own status bits.
-      TimerInstruction() || CounterInstruction() => false,
+      TimerInstruction() || CounterInstruction() || WordInstruction() => false,
     };
   }
 
@@ -409,13 +409,14 @@ class _Ladder {
           final out = _consume();
           final onTap = editable ? () => actions.editInstruction(path, ins) : null;
           children.add(switch (ins) {
-            final BoxInstruction box when _isBox(box) => BoxCell(
-                instruction: box,
+            _ when _isBox(ins) => BoxCell(
+                instruction: ins,
                 above: top - (boxWireY - _glyphH / 2),
                 symbol: program.symbolOf(ins),
                 description: program.descriptionOf(ins),
                 runtime: runtime,
                 online: !editable && runtime.data.isNotEmpty,
+                powered: out,
                 onTap: onTap,
               ),
             _ => _Cell(
@@ -651,6 +652,7 @@ class _Cell extends StatelessWidget {
     final (topText, bottomText) = switch (ins) {
       BitInstruction(:final address) => ('${address.file.prefix}:${address.word}', address.bitLabel),
       BoxInstruction(:final element) => (element.toString(), ''),
+      WordInstruction(:final dest) => (dest.toString(), ''),
     };
     final side = (_cellW - glyphW) / 2;
     final wireY = _glyphH / 2;

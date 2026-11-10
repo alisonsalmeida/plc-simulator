@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../controllers/data_table.controller.dart';
 import '../../../controllers/program.controller.dart';
 import '../../../controllers/rung_edit.controller.dart';
 import '../../../controllers/runtime.controller.dart';
@@ -17,8 +18,8 @@ class InstructionToolbar extends ConsumerStatefulWidget {
 }
 
 class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
-  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare'];
-  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter'};
+  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Move/Logical'];
+  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Move/Logical'};
   static const _tools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
     'XIC': 'XIC – Contato NA',
@@ -35,6 +36,12 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'CTU': 'CTU – Contador crescente',
     'CTD': 'CTD – Contador decrescente',
     'RES': 'RES – Reset',
+  };
+  static const _moveTools = {
+    LadderAssets.branch: 'BRANCH – Ramo paralelo',
+    'MOV': 'MOV – Mover',
+    'MVM': 'MVM – Mover com máscara',
+    'CLR': 'CLR – Zerar',
   };
 
   String _tab = 'User';
@@ -65,7 +72,11 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
                 ),
               ),
             ),
-            for (final MapEntry(:key, :value) in (_tab == 'Timer/Counter' ? _timerCounterTools : _tools).entries)
+            for (final MapEntry(:key, :value) in (switch (_tab) {
+              'Timer/Counter' => _timerCounterTools,
+              'Move/Logical' => _moveTools,
+              _ => _tools,
+            }).entries)
               Tooltip(
                 message: value,
                 child: Draggable<String>(
@@ -76,6 +87,10 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
                   child: _Tile(tool: key, enabled: enabled),
                 ),
               ),
+            TextButton(
+              onPressed: ref.read(dataTableProvider.notifier).show,
+              child: const Text('Data Files'),
+            ),
             IconButton(
               tooltip: 'Excluir linha selecionada',
               icon: const Icon(Icons.delete_outline),

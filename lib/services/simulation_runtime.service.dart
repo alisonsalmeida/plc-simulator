@@ -17,6 +17,9 @@ class SimulationRuntimeService implements IRuntimeService {
   Duration _lastScanAt = Duration.zero;
   RuntimeState _state = const RuntimeState();
 
+  /// Files whose contents survive editing the program.
+  static const _keptFiles = [BitFile.bit, BitFile.timer, BitFile.counter, BitFile.integer];
+
   @override
   RuntimeState get current => _state;
 
@@ -24,10 +27,12 @@ class SimulationRuntimeService implements IRuntimeService {
   Stream<RuntimeState> get states => _states.stream;
 
   @override
-  void load(Program program) {
+  void load(Program program, {bool keepData = false}) {
     _timer?.cancel();
+    final previous = _engine;
     _engine = ScanEngine(program);
-    _emit(const RuntimeState());
+    if (keepData && previous != null) _engine!.memory.copyFrom(previous.memory, _keptFiles);
+    _emit(RuntimeState(data: keepData ? _snapshot() : const {}));
   }
 
   @override
@@ -75,6 +80,19 @@ class SimulationRuntimeService implements IRuntimeService {
   }
 
   @override
+  void writeWord(WordAddress address, int value) {
+    _engine!.memory.writeWord(address, value);
+    _emit(_state.copyWith(data: _snapshot()));
+  }
+
+  @override
+  void toggleBit(BitAddress address) {
+    final memory = _engine!.memory;
+    memory.writeBit(address, !memory.readBit(address));
+    _emit(_state.copyWith(data: _snapshot()));
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     _states.close();
@@ -86,12 +104,14 @@ class SimulationRuntimeService implements IRuntimeService {
       outputs: _engine!.outputImage,
       powerFlow: trace.rungs,
       scanCount: _state.scanCount + 1,
-      data: {
-        for (final f in BitFile.values)
-          f: [for (var w = 0; w < f.words; w++) _engine!.memory.word(f, w)],
-      },
+      data: _snapshot(),
     ));
   }
+
+  Map<BitFile, List<int>> _snapshot() => {
+        for (final f in BitFile.values)
+          f: [for (var w = 0; w < f.words; w++) _engine!.memory.word(f, w)],
+      };
 
   void _emit(RuntimeState s) {
     _state = s;

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../controllers/data_table.controller.dart';
 import '../../controllers/runtime.controller.dart';
 import '../../models/runtime_state.model.dart';
 import '../../controllers/rung_edit.controller.dart';
+import '../data_table/data_table_window.dart';
 import 'components/io_panel.dart';
 import 'components/instruction_toolbar.dart';
 import 'components/ladder_view.dart';
@@ -15,7 +17,8 @@ class EditorPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ladder = Focus(
+    final dataOpen = ref.watch(dataTableProvider.select((s) => s.open));
+    final toolbarAndLadder = Focus(
       autofocus: true,
       onKeyEvent: (_, event) {
         final stopped = ref.read(runtimeProvider).mode == RuntimeMode.stop;
@@ -30,6 +33,14 @@ class EditorPage extends ConsumerWidget {
         Expanded(child: LadderView()),
       ]),
     );
+    // The Data Files window sits outside the Focus so the Delete key never reaches it.
+    final ladder = Column(children: [
+      Expanded(flex: 3, child: toolbarAndLadder),
+      if (dataOpen) ...[
+        const Divider(height: 1),
+        const Expanded(flex: 2, child: DataTableWindow()),
+      ],
+    ]);
     return Scaffold(
       appBar: AppBar(title: const Text('Simulador CLP'), actions: const [RunToolbar()]),
       body: LayoutBuilder(

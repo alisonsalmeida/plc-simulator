@@ -23,6 +23,9 @@ abstract final class LadderAssets {
     'CTU': 'assets/ladder/ctu.svg',
     'CTD': 'assets/ladder/ctd.svg',
     'RES': 'assets/ladder/res.svg',
+    'MOV': 'assets/ladder/mov.svg',
+    'MVM': 'assets/ladder/mvm.svg',
+    'CLR': 'assets/ladder/clr.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

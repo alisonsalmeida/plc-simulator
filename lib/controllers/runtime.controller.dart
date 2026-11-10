@@ -13,11 +13,18 @@ final runtimeServiceProvider = Provider<IRuntimeService>((ref) {
 
 class RuntimeController extends Notifier<RuntimeState> {
   late IRuntimeService _service;
+  Object? _loadedExample;
 
   @override
   RuntimeState build() {
     _service = ref.watch(runtimeServiceProvider);
-    _service.load(ref.watch(programProvider.select((s) => s.program)));
+    // Editing the program keeps the data table; picking another example starts clean.
+    final example = ref.watch(programProvider.select((s) => s.selected));
+    _service.load(
+      ref.watch(programProvider.select((s) => s.program)),
+      keepData: example == _loadedExample,
+    );
+    _loadedExample = example;
     final sub = _service.states.listen((s) => state = s);
     ref.onDispose(sub.cancel);
     return _service.current;

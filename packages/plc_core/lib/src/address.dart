@@ -6,7 +6,8 @@ enum BitFile {
   status('S', 2),
   bit('B3', 16),
   timer('T4', 16, stride: 3, bitNames: {'EN': 15, 'TT': 14, 'DN': 13}),
-  counter('C5', 16, stride: 3, bitNames: {'CU': 15, 'CD': 14, 'DN': 13, 'OV': 12, 'UN': 11});
+  counter('C5', 16, stride: 3, bitNames: {'CU': 15, 'CD': 14, 'DN': 13, 'OV': 12, 'UN': 11}),
+  integer('N7', 32);
 
   const BitFile(this.prefix, this.elements, {this.stride = 1, this.bitNames = const {}});
 
@@ -29,7 +30,7 @@ enum BitFile {
 }
 
 /// A single bit in a data file, e.g. `I:0/0`, `O:0/15`, `S:1/15`, `B3:0/3`, `B3/17`,
-/// `T4:0/DN`, `C5:3/CU`. In structured files [word] is the element number.
+/// `N7:0/3`, `T4:0/DN`, `C5:3/CU`. In structured files [word] is the element number.
 class BitAddress {
   const BitAddress(this.file, this.word, this.bit);
 
@@ -37,7 +38,7 @@ class BitAddress {
   /// Timer and counter bits accept a mnemonic (`T4:0/DN`) or a bit number (`T4:0/13`).
   factory BitAddress.parse(String text) {
     final s = text.trim().toUpperCase();
-    final io = RegExp(r'^([IOS]):(\d+)/(\d+)$').firstMatch(s);
+    final io = RegExp(r'^([IOS]|N7):(\d+)/(\d+)$').firstMatch(s);
     final b3 = RegExp(r'^B3:(\d+)/(\d+)$').firstMatch(s);
     final b3Flat = RegExp(r'^B3/(\d+)$').firstMatch(s);
     final structured = RegExp(r'^(T4|C5):(\d+)/([A-Z0-9]+)$').firstMatch(s);
@@ -134,13 +135,108 @@ class ElementAddress {
   String toString() => '${file.prefix}:$index';
 }
 
-/// Canonical text of a bit or element address; throws [FormatException] when neither.
+/// Canonical text of a bit, element or word address; throws [FormatException] when none.
 String canonicalAddress(String text) {
   try {
     return BitAddress.parse(text).toString();
   } on FormatException {
-    return ElementAddress.parse(text).toString();
+    try {
+      return ElementAddress.parse(text).toString();
+    } on FormatException {
+      return WordAddress.parse(text).toString();
+    }
   }
+}
+
+/// A source or mask of a word instruction: a [WordAddress] or a [Constant].
+sealed class Operand {
+  const Operand();
+
+  /// Parses a word address or an integer constant (decimal, −32768..32767). When [mask] is
+  /// true a constant may also be hex: `00FFh` or `0x00FF` (up to 4 digits). Throws
+  /// [FormatException] when invalid or out of range.
+  factory Operand.parse(String text, {bool mask = false}) {
+    final s = text.trim().toUpperCase();
+    final decimal = RegExp(r'^[+-]?\d+$').hasMatch(s);
+    final hex = mask ? RegExp(r'^(?:0X([0-9A-F]{1,4})|([0-9A-F]{1,4})H)$').firstMatch(s) : null;
+    if (decimal) {
+      final v = int.parse(s);
+      if (v < -32768 || v > 32767) throw FormatException('Constant out of range', text);
+      return Constant(v);
+    }
+    if (hex != null) return Constant(toInt16(int.parse(hex[1] ?? hex[2]!, radix: 16)));
+    return WordAddress.parse(s);
+  }
+
+  /// Canonical text; a constant is printed as hex (`00FFh`) when [hex] is true.
+  String format({bool hex = false});
+
+  @override
+  String toString() => format();
+}
+
+/// An integer constant (signed 16-bit).
+final class Constant extends Operand {
+  const Constant(this.value);
+
+  final int value;
+
+  @override
+  String format({bool hex = false}) => hex
+      ? '${(value & 0xFFFF).toRadixString(16).toUpperCase().padLeft(4, '0')}h'
+      : '$value';
+
+  @override
+  bool operator ==(Object other) => other is Constant && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+/// Which word of a data file element a [WordAddress] points at.
+enum WordField { word, pre, acc }
+
+/// A 16-bit word in a data file: `N7:n`, `B3:n`, `O:0`, `I:0`, `S:0`/`S:1`, or the preset
+/// / accumulator of a timer or counter: `T4:n.PRE`, `T4:n.ACC`, `C5:n.PRE`, `C5:n.ACC`.
+final class WordAddress extends Operand {
+  const WordAddress(this.file, this.element, [this.field = WordField.word]);
+
+  /// Parses a word address; throws [FormatException] when invalid or out of range.
+  factory WordAddress.parse(String text) {
+    final s = text.trim().toUpperCase();
+    final plain = RegExp(r'^(O|I|S|B3|N7):(\d+)$').firstMatch(s);
+    final structured = RegExp(r'^(T4|C5):(\d+)\.(ACC|PRE)$').firstMatch(s);
+    final m = plain ?? structured;
+    if (m == null) throw FormatException('Invalid word address', text);
+    final file = BitFile.values.firstWhere((f) => f.prefix == m[1]);
+    final element = int.parse(m[2]!);
+    if (element >= file.elements) throw FormatException('Word address out of range', text);
+    return WordAddress(file, element, switch (structured?[3]) {
+      'ACC' => WordField.acc,
+      'PRE' => WordField.pre,
+      _ => WordField.word,
+    });
+  }
+
+  final BitFile file;
+
+  /// Word number (plain files) or element number (T4 / C5).
+  final int element;
+  final WordField field;
+
+  /// Index of the word in the file's word array.
+  int get index => file.wordIndex(element) + field.index;
+
+  @override
+  String format({bool hex = false}) =>
+      field == WordField.word ? '${file.prefix}:$element' : '${file.prefix}:$element.${field.name.toUpperCase()}';
+
+  @override
+  bool operator ==(Object other) =>
+      other is WordAddress && other.file == file && other.element == element && other.field == field;
+
+  @override
+  int get hashCode => Object.hash(file, element, field);
 }
 
 /// Timer status bits (T4 files).

@@ -26,10 +26,11 @@ class BoxCell extends StatelessWidget {
     required this.description,
     required this.runtime,
     required this.online,
+    required this.powered,
     required this.onTap,
   });
 
-  final BoxInstruction instruction;
+  final Instruction instruction;
 
   /// Height reserved above the box for the description and symbol bands.
   final double above;
@@ -37,9 +38,12 @@ class BoxCell extends StatelessWidget {
   final String? description;
   final RuntimeState runtime;
   final bool online;
+
+  /// Whether power flows out of the instruction (word boxes are highlighted by it).
+  final bool powered;
   final VoidCallback? onTap;
 
-  ElementAddress get _element => instruction.element;
+  ElementAddress get _element => (instruction as BoxInstruction).element;
 
   bool _bit(int bit) => online && runtime.bit(_element.bitAt(bit));
 
@@ -48,7 +52,8 @@ class BoxCell extends StatelessWidget {
         TimerInstruction() => _bit(TimerBit.en),
         Ctu() => _bit(CounterBit.cu),
         Ctd() => _bit(CounterBit.cd),
-        Res() => false,
+        WordInstruction() => online && powered,
+        _ => false,
       };
 
   static String titleOf(Instruction i) => switch (i) {
@@ -57,21 +62,27 @@ class BoxCell extends StatelessWidget {
         Rto() => 'Retentive Timer On',
         Ctu() => 'Count Up',
         Ctd() => 'Count Down',
+        Mov() => 'Move',
+        Mvm() => 'Masked Move',
+        Clr() => 'Clear',
         _ => '',
       };
 
   @override
   Widget build(BuildContext context) {
     final ins = instruction;
+    final isWord = ins is WordInstruction;
     final isTimer = ins is TimerInstruction;
     final rows = <(String, String)>[
-      (isTimer ? 'Timer' : 'Counter', _element.toString()),
-      if (ins is TimerInstruction) ('Time Base', ins.timeBase.label),
-      ('Preset', '${switch (ins) {
-        TimerInstruction(:final preset) || CounterInstruction(:final preset) => preset,
-        _ => 0,
-      }}<'),
-      ('Accum', '${online ? runtime.acc(_element) : 0}<'),
+      if (ins is WordInstruction) ..._wordRows(ins) else ...[
+        (isTimer ? 'Timer' : 'Counter', _element.toString()),
+        if (ins is TimerInstruction) ('Time Base', ins.timeBase.label),
+        ('Preset', '${switch (ins) {
+          TimerInstruction(:final preset) || CounterInstruction(:final preset) => preset,
+          _ => 0,
+        }}<'),
+        ('Accum', '${online ? runtime.acc(_element) : 0}<'),
+      ],
     ];
     final height = (2 + rows.length) * _rowH;
     final (firstStub, secondStub) = isTimer ? ('EN', 'DN') : (ins is Ctd ? 'CD' : 'CU', 'DN');
@@ -125,14 +136,42 @@ class BoxCell extends StatelessWidget {
                     ]),
                   ),
                 ),
-                _stub(firstStub, boxWireY, _bit(firstBit), continues: true),
-                _stub(secondStub, boxWireY + 2 * _rowH, _bit(secondBit), continues: false),
+                if (isWord)
+                  Positioned(
+                    left: _boxW,
+                    width: boxCellW - _boxW,
+                    top: boxWireY,
+                    height: 1,
+                    child: const ColoredBox(color: LadderStyle.wire),
+                  )
+                else ...[
+                  _stub(firstStub, boxWireY, _bit(firstBit), continues: true),
+                  _stub(secondStub, boxWireY + 2 * _rowH, _bit(secondBit), continues: false),
+                ],
               ]),
             ),
           ]),
         ),
       ),
     );
+  }
+
+  /// Operand rows of a word instruction: an address is followed by its live value
+  /// (`100<`), a constant shows only the number.
+  List<(String, String)> _wordRows(WordInstruction ins) {
+    List<(String, String)> operand(String label, Operand o, {bool hex = false}) => switch (o) {
+          Constant() => [(label, o.format(hex: hex))],
+          WordAddress() => [(label, o.toString()), ('', '${online ? runtime.word(o) : 0}<')],
+        };
+    return switch (ins) {
+      Mov() => [...operand('Source', ins.source), ...operand('Dest', ins.dest)],
+      Mvm() => [
+          ...operand('Source', ins.source),
+          ...operand('Mask', ins.mask, hex: true),
+          ...operand('Dest', ins.dest),
+        ],
+      Clr() => operand('Dest', ins.dest),
+    };
   }
 
   Widget _row(String label, {String? value, bool bold = false}) => SizedBox(

@@ -16,7 +16,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const ProviderScope(child: MaterialApp(home: EditorPage())));
     await tester.pump();
-    for (final label in ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare']) {
+    for (final label in ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Move/Logical']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
     expect(find.text('END'), findsOneWidget);

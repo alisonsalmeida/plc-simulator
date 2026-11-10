@@ -29,16 +29,19 @@ sealed class Instruction extends RungElement {
 
   /// Builds an instruction from its SLC 500 [mnemonic]: XIC, XIO, OTE, OTL, OTU (bit
   /// [address]); TON, TOF, RTO (`T4:n`, with [timeBase] and [preset]); CTU, CTD (`C5:n`,
-  /// with [preset]); RES (`T4:n` or `C5:n`). [timeBase] and [preset] are ignored where they
-  /// do not apply.
+  /// with [preset]); RES (`T4:n` or `C5:n`); MOV, MVM, CLR ([address] is the destination
+  /// word; [source] and [mask] are word addresses or constants, the mask may be hex). The
+  /// extra arguments are ignored where they do not apply.
   ///
   /// Throws [ArgumentError] for an unknown mnemonic or a preset outside 0..[maxPreset], and
-  /// [FormatException] for a bad address.
+  /// [FormatException] for a bad address or operand.
   factory Instruction.create(
     String mnemonic,
     String address, {
     TimeBase timeBase = TimeBase.second,
     int preset = 0,
+    String source = '',
+    String mask = '',
   }) =>
       switch (mnemonic.toUpperCase()) {
         'XIC' => Xic(address),
@@ -52,6 +55,9 @@ sealed class Instruction extends RungElement {
         'CTU' => Ctu(address, preset),
         'CTD' => Ctd(address, preset),
         'RES' => Res(address),
+        'MOV' => Mov(source, address),
+        'MVM' => Mvm(source, mask, address),
+        'CLR' => Clr(address),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -193,6 +199,49 @@ final class Res extends BoxInstruction {
   Res(super.element);
   @override
   String get mnemonic => 'RES';
+}
+
+/// Data movement instructions: they write the destination word every scan while the rung
+/// is true and are outputs. Power passes through unchanged.
+sealed class WordInstruction extends Instruction {
+  WordInstruction(String dest) : dest = WordAddress.parse(dest);
+
+  final WordAddress dest;
+
+  @override
+  bool get isOutput => true;
+
+  @override
+  String get target => dest.toString();
+}
+
+/// Move: dest = source.
+final class Mov extends WordInstruction {
+  Mov(String source, super.dest) : source = Operand.parse(source);
+
+  final Operand source;
+  @override
+  String get mnemonic => 'MOV';
+}
+
+/// Masked move: dest = (dest & ~mask) | (source & mask).
+final class Mvm extends WordInstruction {
+  Mvm(String source, String mask, super.dest)
+      : source = Operand.parse(source),
+        mask = Operand.parse(mask, mask: true);
+
+  final Operand source;
+  final Operand mask;
+  @override
+  String get mnemonic => 'MVM';
+}
+
+/// Clear: dest = 0.
+final class Clr extends WordInstruction {
+  Clr(super.dest);
+
+  @override
+  String get mnemonic => 'CLR';
 }
 
 /// Parallel branch: power out is the OR of every path.

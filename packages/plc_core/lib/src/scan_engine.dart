@@ -72,6 +72,7 @@ class ScanEngine {
         TimerInstruction() => _timer(e, power, us),
         CounterInstruction() => _counter(e, power),
         Res(:final element) => _reset(element, power),
+        WordInstruction() => _move(e, power),
       };
       if (e is Instruction) trace.add(power);
     }
@@ -170,6 +171,24 @@ class ScanEngine {
     }
     memory.writeBit(stored, power);
     memory.writeBit(el.bitAt(CounterBit.dn), memory.acc(el) >= c.preset);
+    return power;
+  }
+
+  bool _move(WordInstruction w, bool power) {
+    if (!power) return power;
+    int value(Operand o) => switch (o) {
+          Constant(:final value) => value,
+          WordAddress() => memory.readWord(o),
+        };
+    switch (w) {
+      case Mov(:final source, :final dest):
+        memory.writeWord(dest, value(source));
+      case Mvm(:final source, :final mask, :final dest):
+        final m = value(mask);
+        memory.writeWord(dest, (memory.readWord(dest) & ~m) | (value(source) & m));
+      case Clr(:final dest):
+        memory.writeWord(dest, 0);
+    }
     return power;
   }
 

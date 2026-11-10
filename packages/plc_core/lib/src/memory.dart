@@ -22,6 +22,19 @@ class PlcMemory {
     words[i] = value ? words[i] | mask : words[i] & ~mask;
   }
 
+  /// Value (signed 16-bit) of the word at [a].
+  int readWord(WordAddress a) => toInt16(_files[a.file]![a.index]);
+
+  /// Stores the low 16 bits of [value] in the word at [a].
+  void writeWord(WordAddress a, int value) => _files[a.file]![a.index] = value;
+
+  /// Copies the words of [files] from [other].
+  void copyFrom(PlcMemory other, Iterable<BitFile> files) {
+    for (final f in files) {
+      _files[f]!.setAll(0, other._files[f]!);
+    }
+  }
+
   /// Preset and accumulated values of a timer/counter element (signed 16-bit).
   int pre(ElementAddress e) => toInt16(_files[e.file]![e.presetIndex]);
   int acc(ElementAddress e) => toInt16(_files[e.file]![e.accumIndex]);

@@ -186,5 +186,28 @@ final ladderExamples = <LadderExample>[
       },
     ),
   ),
+  LadderExample(
+    name: 'Movimentação de dados (MOV/MVM/CLR)',
+    momentaryInputs: const {0, 1, 2},
+    program: Program(
+      [
+        Rung(
+          [Xic('I:0/0'), Mov('100', 'N7:0')],
+          title: 'MOVIMENTAÇÃO DE DADOS',
+          comment: 'MOV: S1 grava o valor 100 na palavra N7:0.',
+        ),
+        Rung(
+          [Xic('I:0/1'), Mvm('N7:0', '000Fh', 'O:0')],
+          comment: 'MVM: S2 copia só os 4 bits baixos de N7:0 para as lâmpadas. '
+              'O resultado fica retido em O:0 depois que S2 solta.',
+        ),
+        Rung(
+          [Xic('I:0/2'), Clr('N7:0')],
+          comment: 'CLR: S3 zera N7:0.',
+        ),
+      ],
+      symbols: const {'I:0/0': 'S1_GRAVA', 'I:0/1': 'S2_COPIA', 'I:0/2': 'S3_ZERA'},
+    ),
+  ),
   LadderExample(name: 'Novo programa', program: const Program([])),
 ];
