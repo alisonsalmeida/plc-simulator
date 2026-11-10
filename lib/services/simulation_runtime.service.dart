@@ -71,6 +71,10 @@ class SimulationRuntimeService implements IRuntimeService {
       outputs: _engine!.outputImage,
       powerFlow: trace.rungs,
       scanCount: _state.scanCount + 1,
+      data: {
+        for (final f in BitFile.values)
+          f: [for (var w = 0; w < f.words; w++) _engine!.memory.word(f, w)],
+      },
     ));
   }
 

@@ -17,7 +17,7 @@ class RuntimeController extends Notifier<RuntimeState> {
   @override
   RuntimeState build() {
     _service = ref.watch(runtimeServiceProvider);
-    _service.load(ref.watch(programProvider.select((s) => s.example.program)));
+    _service.load(ref.watch(programProvider.select((s) => s.program)));
     final sub = _service.states.listen((s) => state = s);
     ref.onDispose(sub.cancel);
     return _service.current;

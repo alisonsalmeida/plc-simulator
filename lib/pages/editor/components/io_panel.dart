@@ -14,7 +14,7 @@ class IoPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final program = ref.watch(programProvider.select((s) => s.example.program));
+    final program = ref.watch(programProvider.select((s) => s.program));
     final runtime = ref.watch(runtimeProvider);
     final kinds = ref.watch(ioPanelProvider).kinds;
     final title = Theme.of(context).textTheme.titleSmall;

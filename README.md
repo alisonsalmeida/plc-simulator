@@ -9,6 +9,15 @@ at Centro de Ensino Literatus.
 Current slice: contacts and coils (XIC, XIO, OTE, OTL, OTU) with parallel branches, using
 bundled example programs. Spec: `literatus/docs/plc-simulator-mvp-spec.md`.
 
+## Assets
+
+Ladder symbols are SVG files in `assets/ladder/` (`xic`, `xio`, `ote`, `otl`, `otu`, `branch`).
+`lib/theme/ladder_assets.dart` is the only mapping from mnemonic to file and is used by both
+the rung view and the palette. To change a symbol, replace its SVG (or edit that map). Draw
+black strokes on a transparent background: the app tints them with the theme colors
+(energized / off). Instruction symbols use a 24x32 viewBox (the wire is drawn by the app on
+both sides); the branch icon is only shown in the palette (48x32).
+
 ## Commands
 
 ```

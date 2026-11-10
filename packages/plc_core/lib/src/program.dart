@@ -9,6 +9,19 @@ sealed class RungElement {
 sealed class Instruction extends RungElement {
   Instruction(String address) : address = BitAddress.parse(address);
 
+  /// Builds an instruction from its SLC 500 [mnemonic] (XIC, XIO, OTE, OTL, OTU).
+  ///
+  /// Throws [ArgumentError] for an unknown mnemonic and [FormatException] for a bad address.
+  factory Instruction.create(String mnemonic, String address) =>
+      switch (mnemonic.toUpperCase()) {
+        'XIC' => Xic(address),
+        'XIO' => Xio(address),
+        'OTE' => Ote(address),
+        'OTL' => Otl(address),
+        'OTU' => Otu(address),
+        _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
+      };
+
   final BitAddress address;
 
   String get mnemonic;
@@ -70,19 +83,44 @@ final class Branch extends RungElement {
 }
 
 class Rung {
-  const Rung(this.elements, {this.comment = ''});
+  const Rung(this.elements, {this.comment = '', this.title = ''});
 
   final List<RungElement> elements;
   final String comment;
+
+  /// Page title shown above the rung comment (empty = none).
+  final String title;
+
+  Rung copyWith({List<RungElement>? elements, String? comment, String? title}) => Rung(
+        elements ?? this.elements,
+        comment: comment ?? this.comment,
+        title: title ?? this.title,
+      );
 }
 
 class Program {
-  const Program(this.rungs, {this.symbols = const {}});
+  const Program(this.rungs, {this.symbols = const {}, this.descriptions = const {}});
 
   final List<Rung> rungs;
 
-  /// Address description keyed by canonical address (e.g. `I:0/0` → "B1 Liga").
+  /// Symbol (short name) keyed by canonical address (e.g. `I:0/0` → "B1 Liga").
   final Map<String, String> symbols;
 
+  /// Multi-line address description keyed by canonical address (e.g. `I:0/0` → "Botão liga\nmotor M1").
+  final Map<String, String> descriptions;
+
+  Program copyWith({
+    List<Rung>? rungs,
+    Map<String, String>? symbols,
+    Map<String, String>? descriptions,
+  }) =>
+      Program(
+        rungs ?? this.rungs,
+        symbols: symbols ?? this.symbols,
+        descriptions: descriptions ?? this.descriptions,
+      );
+
   String? symbolFor(BitAddress a) => symbols[a.toString()];
+
+  String? descriptionFor(BitAddress a) => descriptions[a.toString()];
 }

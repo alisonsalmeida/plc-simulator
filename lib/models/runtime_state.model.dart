@@ -1,3 +1,5 @@
+import 'package:plc_core/plc_core.dart';
+
 enum RuntimeMode { stop, run, step }
 
 /// Snapshot of the simulated PLC after the last scan.
@@ -8,6 +10,7 @@ class RuntimeState {
     this.outputs = 0,
     this.powerFlow = const [],
     this.scanCount = 0,
+    this.data = const {},
   });
 
   final RuntimeMode mode;
@@ -20,8 +23,14 @@ class RuntimeState {
   final List<List<bool>> powerFlow;
   final int scanCount;
 
+  /// Data table words after the last scan, per file; empty before the first scan.
+  final Map<BitFile, List<int>> data;
+
   bool input(int bit) => (inputs >> bit) & 1 == 1;
   bool output(int bit) => (outputs >> bit) & 1 == 1;
+
+  /// Value of [address] in the data table after the last scan.
+  bool bit(BitAddress address) => ((data[address.file]?[address.word] ?? 0) >> address.bit) & 1 == 1;
 
   RuntimeState copyWith({
     RuntimeMode? mode,
@@ -29,6 +38,7 @@ class RuntimeState {
     int? outputs,
     List<List<bool>>? powerFlow,
     int? scanCount,
+    Map<BitFile, List<int>>? data,
   }) =>
       RuntimeState(
         mode: mode ?? this.mode,
@@ -36,5 +46,6 @@ class RuntimeState {
         outputs: outputs ?? this.outputs,
         powerFlow: powerFlow ?? this.powerFlow,
         scanCount: scanCount ?? this.scanCount,
+        data: data ?? this.data,
       );
 }

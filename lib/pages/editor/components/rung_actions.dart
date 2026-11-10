@@ -1,0 +1,97 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:plc_core/plc_core.dart';
+
+import '../../../controllers/element_edit.controller.dart';
+import '../../../controllers/rung_edit.controller.dart';
+import '../../../theme/ladder_assets.dart';
+import 'instruction_dialog.dart';
+
+/// UI flows that turn drops and taps on a rung into controller edits.
+class RungActions {
+  const RungActions(this.context, this.ref, this.rung, this.program);
+
+  final BuildContext context;
+  final WidgetRef ref;
+  final int rung;
+  final Program program;
+
+  Future<RungElement?> _newElement(String tool) async {
+    if (tool == LadderAssets.branch) return const Branch([[], []]);
+    final input = await showInstructionDialog(context, mnemonic: tool);
+    if (input == null || !context.mounted) return null;
+    final edit = ref.read(rungEditProvider.notifier);
+    if (input.symbol.isNotEmpty) edit.setSymbol(input.address, input.symbol);
+    if (input.description.isNotEmpty) edit.setDescription(input.address, input.description);
+    return Instruction.create(tool, input.address);
+  }
+
+  Future<void> dropOnSlot(List<int> slot, String tool) async {
+    final element = await _newElement(tool);
+    if (element != null) ref.read(elementEditProvider.notifier).insertElement(rung, slot, element);
+  }
+
+  Future<void> dropOnNewPath(List<int> branchPath, String tool) async {
+    final element = await _newElement(tool);
+    if (element != null) ref.read(elementEditProvider.notifier).addPath(rung, branchPath, element);
+  }
+
+  Future<void> editInstruction(List<int> path, Instruction ins) async {
+    final input = await showInstructionDialog(
+      context,
+      mnemonic: ins.mnemonic,
+      address: ins.address.toString(),
+      symbol: program.symbolFor(ins.address) ?? '',
+      description: program.descriptionFor(ins.address) ?? '',
+      canDelete: true,
+    );
+    if (input == null || !context.mounted) return;
+    final edit = ref.read(elementEditProvider.notifier);
+    if (input.delete) {
+      edit.deleteElement(rung, path);
+      return;
+    }
+    if (input.address != ins.address.toString()) edit.updateInstruction(rung, path, input.address);
+    final names = ref.read(rungEditProvider.notifier);
+    names.setSymbol(input.address, input.symbol);
+    names.setDescription(input.address, input.description);
+  }
+
+  /// Edits the title and the comment of the rung in one dialog.
+  Future<void> editTitleAndComment() async {
+    final current = program.rungs[rung];
+    final title = TextEditingController(text: current.title);
+    final comment = TextEditingController(text: current.comment);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Título e comentário da linha'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: title,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Título'),
+          ),
+          TextField(
+            controller: comment,
+            minLines: 1,
+            maxLines: 4,
+            decoration: const InputDecoration(labelText: 'Comentário'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('OK')),
+        ],
+      ),
+    );
+    final titleText = title.text.trim();
+    final commentText = comment.text.trim();
+    title.dispose();
+    comment.dispose();
+    if (ok != true) return;
+    final edit = ref.read(rungEditProvider.notifier);
+    edit.setTitle(rung, titleText);
+    edit.setComment(rung, commentText);
+  }
+}
