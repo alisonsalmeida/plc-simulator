@@ -264,5 +264,40 @@ final ladderExamples = <LadderExample>[
       },
     ),
   ),
+  LadderExample(
+    name: 'Analógico: sensor 4–20 mA → saída 0–10 V',
+    program: Program(
+      [
+        Rung(
+          [Scl('I:1.0', '7630', '-2500', 'N7:0')],
+          title: 'ENTRADA E SAÍDA ANALÓGICAS',
+          comment: 'I:1.0 é um sensor de nível 4–20 mA (4 mA = 3277, 20 mA = 16384). '
+              'SCL: N7:0 = I:1.0 x 7630 / 10000 - 2500, ou seja, 0 a 10000 (0,01 %).',
+        ),
+        Rung(
+          [Div('N7:0', '100', 'N7:1')],
+          comment: 'DIV: nível em porcentagem (0 a 100) em N7:1.',
+        ),
+        Rung([Grt('N7:1', '80'), Ote('O:0/0')], comment: 'Nível acima de 80 %: alarme de nível alto.'),
+        Rung([Les('N7:1', '20'), Ote('O:0/1')], comment: 'Nível abaixo de 20 %: alarme de nível baixo.'),
+        Rung(
+          [Scl('N7:0', '32764', '0', 'O:2.0')],
+          comment: 'SCL: O:2.0 = N7:0 x 32764 / 10000, ou seja, 0 a 32764 (0 a 10 V no módulo de saída).',
+        ),
+        Rung(
+          [Les('N7:0', '0'), Mov('0', 'O:2.0')],
+          comment: 'Sensor abaixo de 4 mA (fio rompido): mantém a saída analógica em 0 V.',
+        ),
+      ],
+      symbols: const {
+        'I:1.0': 'SENSOR_NIVEL',
+        'N7:0': 'NIVEL_CENTI_PCT',
+        'N7:1': 'NIVEL_PCT',
+        'O:0/0': 'ALARME_ALTO',
+        'O:0/1': 'ALARME_BAIXO',
+        'O:2.0': 'VALVULA_PROP',
+      },
+    ),
+  ),
   LadderExample(name: 'Novo programa', program: const Program([])),
 ];

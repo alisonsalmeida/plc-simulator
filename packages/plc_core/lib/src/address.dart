@@ -1,8 +1,11 @@
 /// Data files (SLC 500 style). Plain files hold one 16-bit word per address word; the
 /// structured files (timers, counters) hold [stride] words per element: status bits, PRE, ACC.
 enum BitFile {
-  output('O', 1),
-  input('I', 1),
+  // O: word 0 is O:0 (slot 0, 16 digital outputs); words 1..2 are the analog output module
+  // in slot 2 (O:2.0, O:2.1). I: word 0 is I:0; words 1..4 are the analog input module in
+  // slot 1 (I:1.0 .. I:1.3).
+  output('O', 3),
+  input('I', 5),
   status('S', 6),
   bit('B3', 16),
   timer('T4', 16, stride: 3, bitNames: {'EN': 15, 'TT': 14, 'DN': 13}),
@@ -27,6 +30,35 @@ enum BitFile {
 
   /// Index in the file's word array of the first word of [element].
   int wordIndex(int element) => element * stride;
+
+  /// Address text of [element] after the prefix: `0`, `1.2` (analog I/O slot syntax) or `5`.
+  String elementLabel(int element) => switch (this) {
+        BitFile.input when element > 0 => '$analogInputSlot.${element - 1}',
+        BitFile.output when element > 0 => '$analogOutputSlot.${element - 1}',
+        _ => '$element',
+      };
+}
+
+/// Chassis slot of the analog input module (`I:1.0` .. `I:1.3`).
+const analogInputSlot = 1;
+
+/// Chassis slot of the analog output module (`O:2.0`, `O:2.1`).
+const analogOutputSlot = 2;
+
+/// Number of analog input and output channels.
+const analogInputChannels = 4;
+const analogOutputChannels = 2;
+
+/// Parses the `slot[.word]` part of an `I:` / `O:` address into a word index of the file;
+/// null when invalid or out of range. Plain `I:0` / `O:0` is the digital slot 0.
+int? _ioElement(BitFile file, String slot, String? word) {
+  final s = int.parse(slot);
+  if (word == null) return s == 0 ? 0 : null;
+  final w = int.parse(word);
+  final (analogSlot, channels) = file == BitFile.input
+      ? (analogInputSlot, analogInputChannels)
+      : (analogOutputSlot, analogOutputChannels);
+  return s == analogSlot && w < channels ? 1 + w : null;
 }
 
 /// A single bit in a data file, e.g. `I:0/0`, `O:0/15`, `S:1/15`, `B3:0/3`, `B3/17`,
@@ -39,15 +71,22 @@ class BitAddress {
   factory BitAddress.parse(String text) {
     final s = text.trim().toUpperCase();
     final io = RegExp(r'^([IOS]|N7):(\d+)/(\d+)$').firstMatch(s);
+    final analog = RegExp(r'^([IO]):(\d+)\.(\d+)/(\d+)$').firstMatch(s);
     final b3 = RegExp(r'^B3:(\d+)/(\d+)$').firstMatch(s);
     final b3Flat = RegExp(r'^B3/(\d+)$').firstMatch(s);
     final structured = RegExp(r'^(T4|C5):(\d+)/([A-Z0-9]+)$').firstMatch(s);
     final BitFile file;
     final int word;
     final int bit;
-    if (io != null) {
+    if (analog != null) {
+      file = BitFile.values.firstWhere((f) => f.prefix == analog[1]);
+      word = _ioElement(file, analog[2]!, analog[3]) ?? (throw FormatException('Bit address out of range', text));
+      bit = int.parse(analog[4]!);
+    } else if (io != null) {
       file = BitFile.values.firstWhere((f) => f.prefix == io[1]);
-      word = int.parse(io[2]!);
+      word = file == BitFile.input || file == BitFile.output
+          ? _ioElement(file, io[2]!, null) ?? (throw FormatException('Bit address out of range', text))
+          : int.parse(io[2]!);
       bit = int.parse(io[3]!);
     } else if (b3 != null) {
       file = BitFile.bit;
@@ -93,7 +132,7 @@ class BitAddress {
   int get hashCode => Object.hash(file, word, bit);
 
   @override
-  String toString() => '${file.prefix}:$word/$bitLabel';
+  String toString() => '${file.prefix}:${file.elementLabel(word)}/$bitLabel';
 }
 
 /// A timer or counter element, e.g. `T4:0`, `C5:3`.
@@ -204,12 +243,15 @@ final class WordAddress extends Operand {
   /// Parses a word address; throws [FormatException] when invalid or out of range.
   factory WordAddress.parse(String text) {
     final s = text.trim().toUpperCase();
-    final plain = RegExp(r'^(O|I|S|B3|N7):(\d+)$').firstMatch(s);
+    final plain = RegExp(r'^(S|B3|N7):(\d+)$').firstMatch(s);
+    final io = RegExp(r'^(O|I):(\d+)(?:\.(\d+))?$').firstMatch(s);
     final structured = RegExp(r'^(T4|C5):(\d+)\.(ACC|PRE)$').firstMatch(s);
-    final m = plain ?? structured;
+    final m = plain ?? io ?? structured;
     if (m == null) throw FormatException('Invalid word address', text);
     final file = BitFile.values.firstWhere((f) => f.prefix == m[1]);
-    final element = int.parse(m[2]!);
+    final element = io != null
+        ? _ioElement(file, io[2]!, io[3]) ?? (throw FormatException('Word address out of range', text))
+        : int.parse(m[2]!);
     if (element >= file.elements) throw FormatException('Word address out of range', text);
     return WordAddress(file, element, switch (structured?[3]) {
       'ACC' => WordField.acc,
@@ -229,7 +271,7 @@ final class WordAddress extends Operand {
 
   @override
   String format({bool hex = false}) =>
-      field == WordField.word ? '${file.prefix}:$element' : '${file.prefix}:$element.${field.name.toUpperCase()}';
+      field == WordField.word ? '${file.prefix}:${file.elementLabel(element)}' : '${file.prefix}:$element.${field.name.toUpperCase()}';
 
   @override
   bool operator ==(Object other) =>

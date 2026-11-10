@@ -7,6 +7,8 @@ import '../../../controllers/program.controller.dart';
 import '../../../controllers/runtime.controller.dart';
 import '../../../models/io_panel_state.model.dart';
 import '../../../theme/app_theme.dart';
+import 'analog_input_tile.dart';
+import 'analog_output_tile.dart';
 
 /// Virtual I/O: 16 input switches/push buttons and 16 output lamps.
 class IoPanel extends ConsumerWidget {
@@ -44,6 +46,14 @@ class IoPanel extends ConsumerWidget {
                 color: runtime.output(bit) ? AppColors.lampOn : AppColors.lampOff),
           ),
       ]),
+      const SizedBox(height: 16),
+      Text('Entradas analógicas (I:$analogInputSlot)', style: title),
+      const SizedBox(height: 8),
+      for (var ch = 0; ch < analogInputChannels; ch++) AnalogInputTile(channel: ch),
+      const SizedBox(height: 10),
+      Text('Saídas analógicas (O:$analogOutputSlot)', style: title),
+      const SizedBox(height: 8),
+      for (var ch = 0; ch < analogOutputChannels; ch++) AnalogOutputTile(channel: ch),
     ]);
   }
 }

@@ -68,7 +68,12 @@ class SimulationRuntimeService implements IRuntimeService {
     _timer?.cancel();
     _clock.stop();
     _engine!.stop();
-    _emit(_state.copyWith(mode: RuntimeMode.stop, outputs: 0, powerFlow: const []));
+    _emit(_state.copyWith(
+      mode: RuntimeMode.stop,
+      outputs: 0,
+      analogOutputs: List.filled(analogOutputChannels, 0),
+      powerFlow: const [],
+    ));
   }
 
   @override
@@ -80,7 +85,21 @@ class SimulationRuntimeService implements IRuntimeService {
   }
 
   @override
+  void setAnalogInput(int channel, int raw) {
+    final value = raw & 0xFFFF;
+    _engine!.analogInputImage[channel] = value;
+    _engine!.memory.setWord(BitFile.input, 1 + channel, value);
+    _emit(_state.copyWith(
+      analogInputs: [..._engine!.analogInputImage],
+      data: _snapshot(),
+    ));
+  }
+
+  @override
   void writeWord(WordAddress address, int value) {
+    if (_isAnalogInput(address.file, address.element)) {
+      return setAnalogInput(address.element - 1, value);
+    }
     _engine!.memory.writeWord(address, value);
     _emit(_state.copyWith(data: _snapshot()));
   }
@@ -88,6 +107,7 @@ class SimulationRuntimeService implements IRuntimeService {
   @override
   void toggleBit(BitAddress address) {
     if (_isPhysicalInput(address)) return setInput(address.bit, !_state.input(address.bit));
+    if (_isAnalogInput(address.file, address.word)) return _flipAnalogBit(address, null);
     final memory = _engine!.memory;
     memory.writeBit(address, !memory.readBit(address));
     _emit(_state.copyWith(data: _snapshot()));
@@ -96,6 +116,7 @@ class SimulationRuntimeService implements IRuntimeService {
   @override
   void setBit(BitAddress address, bool value) {
     if (_isPhysicalInput(address)) return setInput(address.bit, value);
+    if (_isAnalogInput(address.file, address.word)) return _flipAnalogBit(address, value);
     _engine!.memory.writeBit(address, value);
     _emit(_state.copyWith(data: _snapshot()));
   }
@@ -109,10 +130,24 @@ class SimulationRuntimeService implements IRuntimeService {
   /// I:0 is overwritten by the input image every scan, so writes go through [setInput].
   bool _isPhysicalInput(BitAddress a) => a.file == BitFile.input && a.word == 0;
 
+  /// I:1.x words are overwritten by the analog input image every scan, so writes go
+  /// through [setAnalogInput].
+  bool _isAnalogInput(BitFile file, int element) => file == BitFile.input && element > 0;
+
+  /// Sets analog input bit [a] to [value], or flips it when [value] is null.
+  void _flipAnalogBit(BitAddress a, bool? value) {
+    final channel = a.word - 1;
+    final word = _engine!.analogInputImage[channel];
+    final mask = 1 << a.bit;
+    final on = value ?? (word & mask == 0);
+    setAnalogInput(channel, on ? word | mask : word & ~mask);
+  }
+
   void _scan(Duration elapsed) {
     final trace = _engine!.scan(elapsed: elapsed);
     _emit(_state.copyWith(
       outputs: _engine!.outputImage,
+      analogOutputs: [..._engine!.analogOutputImage],
       powerFlow: trace.rungs,
       scanCount: _state.scanCount + 1,
       data: _snapshot(),

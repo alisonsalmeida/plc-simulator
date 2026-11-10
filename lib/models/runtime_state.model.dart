@@ -8,6 +8,8 @@ class RuntimeState {
     this.mode = RuntimeMode.stop,
     this.inputs = 0,
     this.outputs = 0,
+    this.analogInputs = const [0, 0, 0, 0],
+    this.analogOutputs = const [0, 0],
     this.powerFlow = const [],
     this.scanCount = 0,
     this.data = const {},
@@ -18,6 +20,11 @@ class RuntimeState {
   /// Physical input and output images (bit n = I:0/n, O:0/n).
   final int inputs;
   final int outputs;
+
+  /// Raw counts of the analog input channels I:1.0 .. I:1.3 and of the analog output
+  /// channels O:2.0, O:2.1 (outputs are 0 in STOP).
+  final List<int> analogInputs;
+  final List<int> analogOutputs;
 
   /// Per rung, the power out of each instruction in traversal order; empty in STOP.
   final List<List<bool>> powerFlow;
@@ -46,6 +53,8 @@ class RuntimeState {
     RuntimeMode? mode,
     int? inputs,
     int? outputs,
+    List<int>? analogInputs,
+    List<int>? analogOutputs,
     List<List<bool>>? powerFlow,
     int? scanCount,
     Map<BitFile, List<int>>? data,
@@ -54,6 +63,8 @@ class RuntimeState {
         mode: mode ?? this.mode,
         inputs: inputs ?? this.inputs,
         outputs: outputs ?? this.outputs,
+        analogInputs: analogInputs ?? this.analogInputs,
+        analogOutputs: analogOutputs ?? this.analogOutputs,
         powerFlow: powerFlow ?? this.powerFlow,
         scanCount: scanCount ?? this.scanCount,
         data: data ?? this.data,

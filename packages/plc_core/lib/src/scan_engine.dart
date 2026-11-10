@@ -39,6 +39,14 @@ class ScanEngine {
   /// Physical outputs, copied from `O:0` at the end of each scan.
   int outputImage = 0;
 
+  /// Raw counts of the analog input channels (I:1.0 .. I:1.3), copied to the input file at
+  /// the start of each scan.
+  final List<int> analogInputImage = List.filled(analogInputChannels, 0);
+
+  /// Raw counts of the analog output channels (O:2.0, O:2.1), copied from the output file
+  /// at the end of each scan.
+  final List<int> analogOutputImage = List.filled(analogOutputChannels, 0);
+
   bool _firstScan = true;
 
   /// Time not yet turned into timer ticks, per timer, in microseconds.
@@ -53,12 +61,19 @@ class ScanEngine {
     _firstScan = true;
   }
 
-  /// Called on the transition to STOP: physical outputs go off, the data table is kept.
-  void stop() => outputImage = 0;
+  /// Called on the transition to STOP: physical outputs (digital and analog) go off, the
+  /// data table is kept.
+  void stop() {
+    outputImage = 0;
+    analogOutputImage.fillRange(0, analogOutputChannels, 0);
+  }
 
   /// One scan. [elapsed] is the time since the previous scan; it drives the timers.
   ScanTrace scan({Duration elapsed = Duration.zero}) {
     memory.setWord(BitFile.input, 0, inputImage);
+    for (var ch = 0; ch < analogInputChannels; ch++) {
+      memory.setWord(BitFile.input, 1 + ch, analogInputImage[ch]);
+    }
     memory.writeBit(firstScanBit, _firstScan);
     final rungs = <List<bool>>[];
     for (final rung in program.rungs) {
@@ -67,6 +82,9 @@ class ScanEngine {
       rungs.add(trace);
     }
     outputImage = memory.word(BitFile.output, 0);
+    for (var ch = 0; ch < analogOutputChannels; ch++) {
+      analogOutputImage[ch] = memory.word(BitFile.output, 1 + ch);
+    }
     _firstScan = false;
     return ScanTrace(rungs);
   }

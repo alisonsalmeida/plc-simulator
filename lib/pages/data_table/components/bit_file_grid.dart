@@ -26,15 +26,15 @@ class BitFileGrid extends ConsumerWidget {
         for (var b = 15; b >= 0; b--) GridCell('$b', width: _cellW, header: true),
       ]),
       for (var w = 0; w < file.words; w++)
-        GridRow(label: '${file.prefix}:$w', cells: [
+        GridRow(label: '${file.prefix}:${file.elementLabel(w)}', cells: [
           for (var b = 15; b >= 0; b--)
             GridCell(
               '${(words[w] >> b) & 1}',
-              key: ValueKey('bit-${file.prefix}:$w/$b'),
+              key: ValueKey('bit-${file.prefix}:${file.elementLabel(w)}/$b'),
               width: _cellW,
-              selected: selected == '${file.prefix}:$w/$b',
+              selected: selected == '${file.prefix}:${file.elementLabel(w)}/$b',
               onTap: () {
-                onSelect('${file.prefix}:$w/$b');
+                onSelect('${file.prefix}:${file.elementLabel(w)}/$b');
                 if (editable) ref.read(dataEditProvider.notifier).toggleBit(BitAddress(file, w, b));
               },
             ),

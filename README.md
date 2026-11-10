@@ -27,10 +27,29 @@ the `plc_core` parser. Widgets read and write the live data table in RUN and STO
 Data Files window. Drag a widget by its label to move it; right-click (or long-press the
 label) for Editar / Excluir. The layout is kept in memory only (no save/load yet).
 
+## Analog I/O
+
+SLC 500 style modules, shown below the digital I/O in the right-hand panel. Each channel has a
+range selector (`0–10 V` or `4–20 mA`); the data table holds raw counts like the real module.
+
+| Module | Slot | Words | Range | Raw counts |
+|---|---|---|---|---|
+| Analog input (1746-NI4) | 1 | `I:1.0` … `I:1.3` (bits: `I:1.0/3`) | 0–10 V | 0 … 32767 |
+| | | | 4–20 mA | 3277 … 16384 (0 mA = 0) |
+| Analog output (1746-NO4V/NO4I) | 2 | `O:2.0`, `O:2.1` (bits: `O:2.0/3`) | 0–10 V | 0 … 32764 |
+| | | | 4–20 mA | 6242 … 31208 (display up to 21 mA = 32764) |
+
+The student moves a slider in volts / milliamps; the value stays across scans (writing `I:1.x`
+from Data Files goes through the same path). The ladder writes the outputs (MOV / SCL) and the
+panel shows the physical value read-only; analog outputs go to 0 on STOP. Default ranges: `I:1.0`
+4–20 mA, other inputs and `O:2.0` 0–10 V, `O:2.1` 4–20 mA. Example: "Analógico: sensor 4–20 mA →
+saída 0–10 V".
+
 ## Commands
 
 ```
 make check   # analyze + tests (app and engine)
 make run     # run in Chrome
 make web     # release build in build/web
+flutter build linux   # desktop release build in build/linux/x64/release/bundle
 ```

@@ -15,6 +15,9 @@ abstract class IRuntimeService {
   void stop();
   void setInput(int bit, bool value);
 
+  /// Sets the raw count of analog input [channel] (I:1.0 .. I:1.3); it stays until changed.
+  void setAnalogInput(int channel, int raw);
+
   /// Writes a data table word (the low 16 bits of [value]); works in STOP and RUN.
   void writeWord(WordAddress address, int value);
 
