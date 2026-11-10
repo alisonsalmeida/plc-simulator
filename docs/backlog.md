@@ -4,10 +4,10 @@
 
 - [ ] Analog input sliders in the I/O panel simulating voltage and current sensors
 - [ ] RSLogix-style window chrome, stage 2: menus, project tree, data files, find/replace, status bar
-- [ ] Save/load programs as JSON
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
+- [x] Save/load programs as JSON
 - [x] Internal HMI (supervisory) screen bound to data table tags
 - [x] Resizable Data Table pane height (drag to grow or shrink)
 - [x] Data table view and data movement instructions (N7, MOV/MVM/CLR, Data Files window)

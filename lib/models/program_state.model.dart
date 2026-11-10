@@ -8,6 +8,7 @@ class ProgramState {
     this.selected = 0,
     Program? program,
     this.selectedRung,
+    this.loadCount = 0,
   }) : program = program ?? examples[selected].program.copyWith();
 
   final List<LadderExample> examples;
@@ -19,6 +20,9 @@ class ProgramState {
   /// Index of the selected rung, or null when none is selected.
   final int? selectedRung;
 
+  /// How many program files were loaded; a new value makes the runtime start from clean data.
+  final int loadCount;
+
   LadderExample get example => examples[selected];
 
   ProgramState copyWith({Program? program, int? selectedRung, bool clearSelection = false}) =>
@@ -27,5 +31,6 @@ class ProgramState {
         selected: selected,
         program: program ?? this.program,
         selectedRung: clearSelection ? null : (selectedRung ?? this.selectedRung),
+        loadCount: loadCount,
       );
 }

@@ -18,8 +18,9 @@ class RuntimeController extends Notifier<RuntimeState> {
   @override
   RuntimeState build() {
     _service = ref.watch(runtimeServiceProvider);
-    // Editing the program keeps the data table; picking another example starts clean.
-    final example = ref.watch(programProvider.select((s) => s.selected));
+    // Editing the program keeps the data table; picking another example or loading a file
+    // starts clean.
+    final example = ref.watch(programProvider.select((s) => (s.selected, s.loadCount)));
     _service.load(
       ref.watch(programProvider.select((s) => s.program)),
       keepData: example == _loadedExample,
