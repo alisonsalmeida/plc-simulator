@@ -18,7 +18,7 @@ class InstructionToolbar extends ConsumerStatefulWidget {
 
 class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
   static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare'];
-  static const _enabledTabs = {'User', 'Bit'};
+  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter'};
   static const _tools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
     'XIC': 'XIC – Contato NA',
@@ -26,6 +26,15 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'OTE': 'OTE – Saída (energizar)',
     'OTL': 'OTL – Saída com retenção (latch)',
     'OTU': 'OTU – Desliga retenção (unlatch)',
+  };
+  static const _timerCounterTools = {
+    LadderAssets.branch: 'BRANCH – Ramo paralelo',
+    'TON': 'TON – Temporizador na energização',
+    'TOF': 'TOF – Temporizador na desenergização',
+    'RTO': 'RTO – Temporizador retentivo',
+    'CTU': 'CTU – Contador crescente',
+    'CTD': 'CTD – Contador decrescente',
+    'RES': 'RES – Reset',
   };
 
   String _tab = 'User';
@@ -56,7 +65,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
                 ),
               ),
             ),
-            for (final MapEntry(:key, :value) in _tools.entries)
+            for (final MapEntry(:key, :value) in (_tab == 'Timer/Counter' ? _timerCounterTools : _tools).entries)
               Tooltip(
                 message: value,
                 child: Draggable<String>(

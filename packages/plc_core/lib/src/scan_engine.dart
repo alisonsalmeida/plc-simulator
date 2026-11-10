@@ -28,10 +28,14 @@ class ScanEngine {
 
   bool _firstScan = true;
 
-  /// Called on the transition to RUN: clears non-retentive (OTE) bits, arms the first scan.
+  /// Time not yet turned into timer ticks, per timer, in microseconds.
+  final Map<ElementAddress, int> _remainder = {};
+
+  /// Called on the transition to RUN: clears non-retentive bits (OTE, TON, TOF), loads
+  /// every PRE, arms the first scan. RTO and counters keep their data.
   void prescan() {
     for (final rung in program.rungs) {
-      _clearOte(rung.elements);
+      _prescan(rung.elements);
     }
     _firstScan = true;
   }
@@ -39,13 +43,14 @@ class ScanEngine {
   /// Called on the transition to STOP: physical outputs go off, the data table is kept.
   void stop() => outputImage = 0;
 
-  ScanTrace scan() {
+  /// One scan. [elapsed] is the time since the previous scan; it drives the timers.
+  ScanTrace scan({Duration elapsed = Duration.zero}) {
     memory.setWord(BitFile.input, 0, inputImage);
     memory.writeBit(firstScanBit, _firstScan);
     final rungs = <List<bool>>[];
     for (final rung in program.rungs) {
       final trace = <bool>[];
-      _series(rung.elements, true, trace);
+      _series(rung.elements, true, trace, elapsed.inMicroseconds);
       rungs.add(trace);
     }
     outputImage = memory.word(BitFile.output, 0);
@@ -53,7 +58,7 @@ class ScanEngine {
     return ScanTrace(rungs);
   }
 
-  bool _series(List<RungElement> elements, bool power, List<bool> trace) {
+  bool _series(List<RungElement> elements, bool power, List<bool> trace, int us) {
     for (final e in elements) {
       power = switch (e) {
         Xic(:final address) => power && memory.readBit(address),
@@ -63,7 +68,10 @@ class ScanEngine {
         Otu(:final address) => power ? _write(address, false, power) : power,
         // Every path is evaluated (no short-circuit), so outputs inside branches update.
         Branch(:final paths) =>
-          paths.fold(false, (out, path) => _series(path, power, trace) || out),
+          paths.fold(false, (out, path) => _series(path, power, trace, us) || out),
+        TimerInstruction() => _timer(e, power, us),
+        CounterInstruction() => _counter(e, power),
+        Res(:final element) => _reset(element, power),
       };
       if (e is Instruction) trace.add(power);
     }
@@ -75,13 +83,125 @@ class ScanEngine {
     return power;
   }
 
-  void _clearOte(List<RungElement> elements) {
+  bool _timer(TimerInstruction t, bool power, int us) {
+    final el = t.element;
+    BitAddress bit(int b) => el.bitAt(b);
+    memory.setPre(el, t.preset);
+    final tickUs = t.timeBase.milliseconds * 1000;
+    // Adds the elapsed time to ACC (capped at PRE); true once ACC has reached PRE.
+    bool accumulate() {
+      final rem = (_remainder[el] ?? 0) + us;
+      final acc = memory.acc(el) + rem ~/ tickUs;
+      _remainder[el] = rem % tickUs;
+      if (acc >= t.preset) {
+        memory.setAcc(el, t.preset);
+        _remainder[el] = 0;
+        return true;
+      }
+      memory.setAcc(el, acc);
+      return false;
+    }
+
+    void clear() {
+      memory.writeBit(bit(TimerBit.en), false);
+      memory.writeBit(bit(TimerBit.tt), false);
+      memory.writeBit(bit(TimerBit.dn), false);
+      memory.setAcc(el, 0);
+      _remainder[el] = 0;
+    }
+
+    switch (t) {
+      case Ton():
+        if (!power) {
+          clear();
+        } else {
+          memory.writeBit(bit(TimerBit.en), true);
+          final done = accumulate();
+          memory.writeBit(bit(TimerBit.tt), !done);
+          memory.writeBit(bit(TimerBit.dn), done);
+        }
+      case Rto():
+        if (!power) {
+          memory.writeBit(bit(TimerBit.en), false);
+          memory.writeBit(bit(TimerBit.tt), false);
+        } else {
+          memory.writeBit(bit(TimerBit.en), true);
+          final done = accumulate();
+          memory.writeBit(bit(TimerBit.tt), !done);
+          memory.writeBit(bit(TimerBit.dn), done);
+        }
+      case Tof():
+        if (power) {
+          memory.writeBit(bit(TimerBit.en), true);
+          memory.writeBit(bit(TimerBit.dn), true);
+          memory.writeBit(bit(TimerBit.tt), false);
+          memory.setAcc(el, 0);
+          _remainder[el] = 0;
+        } else {
+          memory.writeBit(bit(TimerBit.en), false);
+          if (memory.readBit(bit(TimerBit.dn))) {
+            final done = accumulate();
+            memory.writeBit(bit(TimerBit.tt), !done);
+            memory.writeBit(bit(TimerBit.dn), !done);
+          } else {
+            memory.writeBit(bit(TimerBit.tt), false);
+          }
+        }
+    }
+    return power;
+  }
+
+  bool _counter(CounterInstruction c, bool power) {
+    final el = c.element;
+    memory.setPre(el, c.preset);
+    final up = c is Ctu;
+    final stored = el.bitAt(up ? CounterBit.cu : CounterBit.cd);
+    if (power && !memory.readBit(stored)) {
+      final acc = memory.acc(el) + (up ? 1 : -1);
+      if (acc > 32767) {
+        memory.setAcc(el, -32768);
+        memory.writeBit(el.bitAt(CounterBit.ov), true);
+      } else if (acc < -32768) {
+        memory.setAcc(el, 32767);
+        memory.writeBit(el.bitAt(CounterBit.un), true);
+      } else {
+        memory.setAcc(el, acc);
+      }
+    }
+    memory.writeBit(stored, power);
+    memory.writeBit(el.bitAt(CounterBit.dn), memory.acc(el) >= c.preset);
+    return power;
+  }
+
+  bool _reset(ElementAddress el, bool power) {
+    if (power) {
+      memory.setAcc(el, 0);
+      _remainder[el] = 0;
+      for (final bit in el.file.bitNames.values) {
+        memory.writeBit(el.bitAt(bit), false);
+      }
+    }
+    return power;
+  }
+
+  void _prescan(List<RungElement> elements) {
     for (final e in elements) {
       switch (e) {
         case Ote(:final address):
           memory.writeBit(address, false);
+        case Ton(:final element, :final preset):
+          memory.setPre(element, preset);
+          _reset(element, true);
+        case Tof(:final element, :final preset):
+          memory.setPre(element, preset);
+          _reset(element, true);
+          memory.setAcc(element, preset);
+        case Rto(:final element, :final preset):
+          memory.setPre(element, preset);
+        case CounterInstruction(:final element, :final preset):
+          memory.setPre(element, preset);
         case Branch(:final paths):
-          paths.forEach(_clearOte);
+          paths.forEach(_prescan);
         default:
           break;
       }

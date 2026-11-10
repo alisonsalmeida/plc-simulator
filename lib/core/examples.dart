@@ -2,7 +2,7 @@ import 'package:plc_core/plc_core.dart';
 
 import '../models/ladder_example.model.dart';
 
-/// Bundled examples for the first CLP II lessons (contacts and coils). UI text is pt-BR.
+/// Bundled examples for the first CLP II lessons (contacts, coils, timers and counters). UI text is pt-BR.
 final ladderExamples = <LadderExample>[
   LadderExample(
     name: 'Partida direta com selo',
@@ -103,6 +103,86 @@ final ladderExamples = <LadderExample>[
         'I:0/0': 'Botão liga\nmotor M1',
         'I:0/1': 'Botão desliga\nmotor M1',
         'O:0/0': 'Contator do\nmotor M1',
+      },
+    ),
+  ),
+  LadderExample(
+    name: 'Partida com retardo (TON)',
+    momentaryInputs: const {0, 1},
+    program: Program(
+      [
+        Rung(
+          [
+            Branch([
+              [Xic('I:0/0')],
+              [Xic('B3:0/0')],
+            ]),
+            Xio('I:0/1'),
+            Ote('B3:0/0'),
+          ],
+          title: 'PARTIDA COM RETARDO',
+          comment: 'B1 liga a sequência e B0 a desliga. O bit B3:0/0 faz o selo.',
+        ),
+        Rung(
+          [Xic('B3:0/0'), Ton('T4:0', TimeBase.second, 5)],
+          comment: 'Temporizador na energização: conta 5 s com a sequência ligada.',
+        ),
+        Rung(
+          [Xic('T4:0/DN'), Ote('O:0/0')],
+          comment: 'Passados os 5 s (DN), o contator K1 liga o motor M1.',
+        ),
+      ],
+      symbols: const {
+        'I:0/0': 'B1_LIGA',
+        'I:0/1': 'B0_DESLIGA',
+        'B3:0/0': 'SEQ_LIGADA',
+        'T4:0': 'T_PARTIDA',
+        'O:0/0': 'K1_MOTOR',
+      },
+      descriptions: const {
+        'I:0/0': 'Botão liga\nmotor M1',
+        'I:0/1': 'Botão desliga\nmotor M1 (NF)',
+        'T4:0': 'Retardo de\n5 s na partida',
+        'O:0/0': 'Contator do\nmotor M1',
+      },
+    ),
+  ),
+  LadderExample(
+    name: 'Contador de peças (CTU)',
+    momentaryInputs: const {2, 3},
+    program: Program(
+      [
+        Rung(
+          [Xic('I:0/2'), Ctu('C5:0', 10)],
+          title: 'CONTADOR DE PEÇAS',
+          comment: 'Cada pulso do sensor S3 conta uma peça.',
+        ),
+        Rung(
+          [Xic('C5:0/DN'), Ote('O:0/1')],
+          comment: 'Com 10 peças (DN) acende a lâmpada H1.',
+        ),
+        Rung(
+          [
+            Branch([
+              [Xic('I:0/3')],
+              [Xic('B3:0/0')],
+            ]),
+            Res('C5:0'),
+          ],
+          comment: 'O botão S4 (ou o bit B3:0/0) zera o contador.',
+        ),
+      ],
+      symbols: const {
+        'I:0/2': 'S3_PECA',
+        'I:0/3': 'S4_ZERA',
+        'C5:0': 'C_PECAS',
+        'O:0/1': 'H1_LOTE',
+      },
+      descriptions: const {
+        'I:0/2': 'Sensor de\npeças',
+        'I:0/3': 'Botão zera\ncontador',
+        'C5:0': 'Peças do lote',
+        'O:0/1': 'Lâmpada\nlote completo',
       },
     ),
   ),

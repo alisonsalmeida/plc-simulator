@@ -5,33 +5,77 @@ sealed class RungElement {
   const RungElement();
 }
 
-/// Bit instructions: contacts (inputs) and coils (outputs).
-sealed class Instruction extends RungElement {
-  Instruction(String address) : address = BitAddress.parse(address);
+/// Time base of a timer: one tick of ACC.
+enum TimeBase {
+  second(1000, '1.0'),
+  centisecond(10, '0.01');
 
-  /// Builds an instruction from its SLC 500 [mnemonic] (XIC, XIO, OTE, OTL, OTU).
+  const TimeBase(this.milliseconds, this.label);
+
+  /// Duration of one tick, in milliseconds.
+  final int milliseconds;
+
+  /// As printed by RSLogix, in seconds.
+  final String label;
+}
+
+/// Largest preset of a timer or counter.
+const maxPreset = 32767;
+
+/// Everything that sits on a rung as a single instruction: bit instructions and the
+/// timer/counter box instructions.
+sealed class Instruction extends RungElement {
+  const Instruction();
+
+  /// Builds an instruction from its SLC 500 [mnemonic]: XIC, XIO, OTE, OTL, OTU (bit
+  /// [address]); TON, TOF, RTO (`T4:n`, with [timeBase] and [preset]); CTU, CTD (`C5:n`,
+  /// with [preset]); RES (`T4:n` or `C5:n`). [timeBase] and [preset] are ignored where they
+  /// do not apply.
   ///
-  /// Throws [ArgumentError] for an unknown mnemonic and [FormatException] for a bad address.
-  factory Instruction.create(String mnemonic, String address) =>
+  /// Throws [ArgumentError] for an unknown mnemonic or a preset outside 0..[maxPreset], and
+  /// [FormatException] for a bad address.
+  factory Instruction.create(
+    String mnemonic,
+    String address, {
+    TimeBase timeBase = TimeBase.second,
+    int preset = 0,
+  }) =>
       switch (mnemonic.toUpperCase()) {
         'XIC' => Xic(address),
         'XIO' => Xio(address),
         'OTE' => Ote(address),
         'OTL' => Otl(address),
         'OTU' => Otu(address),
+        'TON' => Ton(address, timeBase, preset),
+        'TOF' => Tof(address, timeBase, preset),
+        'RTO' => Rto(address, timeBase, preset),
+        'CTU' => Ctu(address, preset),
+        'CTD' => Ctd(address, preset),
+        'RES' => Res(address),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
-
-  final BitAddress address;
 
   String get mnemonic;
 
   /// Output instructions are drawn at the right end of the rung.
   bool get isOutput;
+
+  /// Canonical address text, the key of the symbol and description of the instruction.
+  String get target;
+}
+
+/// Bit instructions: contacts (inputs) and coils (outputs).
+sealed class BitInstruction extends Instruction {
+  BitInstruction(String address) : address = BitAddress.parse(address);
+
+  final BitAddress address;
+
+  @override
+  String get target => address.toString();
 }
 
 /// Examine if closed (normally open contact): passes power when the bit is 1.
-final class Xic extends Instruction {
+final class Xic extends BitInstruction {
   Xic(super.address);
   @override
   String get mnemonic => 'XIC';
@@ -40,7 +84,7 @@ final class Xic extends Instruction {
 }
 
 /// Examine if open (normally closed contact): passes power when the bit is 0.
-final class Xio extends Instruction {
+final class Xio extends BitInstruction {
   Xio(super.address);
   @override
   String get mnemonic => 'XIO';
@@ -49,7 +93,7 @@ final class Xio extends Instruction {
 }
 
 /// Output energize: bit follows rung power (non-retentive).
-final class Ote extends Instruction {
+final class Ote extends BitInstruction {
   Ote(super.address);
   @override
   String get mnemonic => 'OTE';
@@ -58,7 +102,7 @@ final class Ote extends Instruction {
 }
 
 /// Output latch: sets the bit when the rung is true (retentive).
-final class Otl extends Instruction {
+final class Otl extends BitInstruction {
   Otl(super.address);
   @override
   String get mnemonic => 'OTL';
@@ -67,12 +111,88 @@ final class Otl extends Instruction {
 }
 
 /// Output unlatch: clears the bit when the rung is true.
-final class Otu extends Instruction {
+final class Otu extends BitInstruction {
   Otu(super.address);
   @override
   String get mnemonic => 'OTU';
   @override
   bool get isOutput => true;
+}
+
+/// Timer and counter instructions: they work on a `T4:n` / `C5:n` element and are outputs.
+/// Power passes through unchanged.
+sealed class BoxInstruction extends Instruction {
+  BoxInstruction(String element, {BitFile? only})
+      : element = ElementAddress.parse(element, only: only);
+
+  final ElementAddress element;
+
+  @override
+  bool get isOutput => true;
+
+  @override
+  String get target => element.toString();
+}
+
+/// Timers: [preset] ticks of [timeBase] on a `T4:n` element.
+sealed class TimerInstruction extends BoxInstruction {
+  TimerInstruction(super.element, this.timeBase, this.preset) : super(only: BitFile.timer) {
+    RangeError.checkValueInInterval(preset, 0, maxPreset, 'preset');
+  }
+
+  final TimeBase timeBase;
+  final int preset;
+}
+
+/// Timer on-delay: times while the rung is true; DN when ACC reaches PRE.
+final class Ton extends TimerInstruction {
+  Ton(super.element, super.timeBase, super.preset);
+  @override
+  String get mnemonic => 'TON';
+}
+
+/// Timer off-delay: DN stays on for the preset time after the rung goes false.
+final class Tof extends TimerInstruction {
+  Tof(super.element, super.timeBase, super.preset);
+  @override
+  String get mnemonic => 'TOF';
+}
+
+/// Retentive timer on: like [Ton] but keeps ACC and DN when the rung is false (only [Res] clears it).
+final class Rto extends TimerInstruction {
+  Rto(super.element, super.timeBase, super.preset);
+  @override
+  String get mnemonic => 'RTO';
+}
+
+/// Counters: [preset] on a `C5:n` element.
+sealed class CounterInstruction extends BoxInstruction {
+  CounterInstruction(super.element, this.preset) : super(only: BitFile.counter) {
+    RangeError.checkValueInInterval(preset, 0, maxPreset, 'preset');
+  }
+
+  final int preset;
+}
+
+/// Count up: ACC + 1 on each false-to-true transition of the rung.
+final class Ctu extends CounterInstruction {
+  Ctu(super.element, super.preset);
+  @override
+  String get mnemonic => 'CTU';
+}
+
+/// Count down: ACC - 1 on each false-to-true transition of the rung.
+final class Ctd extends CounterInstruction {
+  Ctd(super.element, super.preset);
+  @override
+  String get mnemonic => 'CTD';
+}
+
+/// Reset: when the rung is true, clears ACC and the status bits of a timer or counter.
+final class Res extends BoxInstruction {
+  Res(super.element);
+  @override
+  String get mnemonic => 'RES';
 }
 
 /// Parallel branch: power out is the OR of every path.
@@ -123,4 +243,9 @@ class Program {
   String? symbolFor(BitAddress a) => symbols[a.toString()];
 
   String? descriptionFor(BitAddress a) => descriptions[a.toString()];
+
+  /// Symbol of the address an instruction works on (bit or `T4:n` / `C5:n` element).
+  String? symbolOf(Instruction i) => symbols[i.target];
+
+  String? descriptionOf(Instruction i) => descriptions[i.target];
 }

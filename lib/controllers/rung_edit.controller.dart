@@ -45,7 +45,7 @@ class RungEditController extends Notifier<void> {
       p.copyWith(descriptions: _withEntry(p.descriptions, address, description)));
 
   Map<String, String> _withEntry(Map<String, String> map, String address, String text) {
-    final key = BitAddress.parse(address).toString();
+    final key = canonicalAddress(address);
     final result = {...map};
     if (text.trim().isEmpty) {
       result.remove(key);

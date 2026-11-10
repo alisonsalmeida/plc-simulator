@@ -13,6 +13,8 @@ class SimulationRuntimeService implements IRuntimeService {
   final _states = StreamController<RuntimeState>.broadcast();
   ScanEngine? _engine;
   Timer? _timer;
+  final _clock = Stopwatch();
+  Duration _lastScanAt = Duration.zero;
   RuntimeState _state = const RuntimeState();
 
   @override
@@ -32,21 +34,34 @@ class SimulationRuntimeService implements IRuntimeService {
   void run() {
     if (_state.mode == RuntimeMode.run) return;
     if (_state.mode == RuntimeMode.stop) _engine!.prescan();
-    _timer = Timer.periodic(scanPeriod, (_) => _scan());
+    _clock
+      ..reset()
+      ..start();
+    _lastScanAt = Duration.zero;
+    // Timers advance by the real time that passed between scans.
+    _timer = Timer.periodic(scanPeriod, (_) {
+      final now = _clock.elapsed;
+      final elapsed = now - _lastScanAt;
+      _lastScanAt = now;
+      _scan(elapsed);
+    });
     _emit(_state.copyWith(mode: RuntimeMode.run));
   }
 
   @override
   void step() {
     _timer?.cancel();
+    _clock.stop();
     if (_state.mode == RuntimeMode.stop) _engine!.prescan();
     _state = _state.copyWith(mode: RuntimeMode.step);
-    _scan();
+    // STEP is one scan that counts as a fixed 10 ms, so timers advance predictably.
+    _scan(const Duration(milliseconds: 10));
   }
 
   @override
   void stop() {
     _timer?.cancel();
+    _clock.stop();
     _engine!.stop();
     _emit(_state.copyWith(mode: RuntimeMode.stop, outputs: 0, powerFlow: const []));
   }
@@ -65,8 +80,8 @@ class SimulationRuntimeService implements IRuntimeService {
     _states.close();
   }
 
-  void _scan() {
-    final trace = _engine!.scan();
+  void _scan(Duration elapsed) {
+    final trace = _engine!.scan(elapsed: elapsed);
     _emit(_state.copyWith(
       outputs: _engine!.outputImage,
       powerFlow: trace.rungs,

@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 String show(List<RungElement> s) => s
     .map((e) => switch (e) {
-          Instruction() => '${e.mnemonic}(${e.address})',
+          Instruction() => '${e.mnemonic}(${e.target})',
           Branch(:final paths) => '[${paths.map(show).join(' | ')}]',
         })
     .join(' ');
@@ -21,7 +21,7 @@ void main() {
       expect(Instruction.create('OTE', 'O:0/0'), isA<Ote>());
       expect(Instruction.create('OTL', 'O:0/0'), isA<Otl>());
       expect(Instruction.create('OTU', 'O:0/0'), isA<Otu>());
-      expect(() => Instruction.create('TON', 'B3/0'), throwsArgumentError);
+      expect(() => Instruction.create('FOO', 'B3/0'), throwsArgumentError);
       expect(() => Instruction.create('XIC', 'bad'), throwsFormatException);
     });
 

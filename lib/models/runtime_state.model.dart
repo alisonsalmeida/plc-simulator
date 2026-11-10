@@ -30,7 +30,14 @@ class RuntimeState {
   bool output(int bit) => (outputs >> bit) & 1 == 1;
 
   /// Value of [address] in the data table after the last scan.
-  bool bit(BitAddress address) => ((data[address.file]?[address.word] ?? 0) >> address.bit) & 1 == 1;
+  bool bit(BitAddress address) =>
+      (_word(address.file, address.file.wordIndex(address.word)) >> address.bit) & 1 == 1;
+
+  /// Preset and accumulated value (signed 16-bit) of a timer/counter after the last scan.
+  int pre(ElementAddress e) => toInt16(_word(e.file, e.presetIndex));
+  int acc(ElementAddress e) => toInt16(_word(e.file, e.accumIndex));
+
+  int _word(BitFile file, int index) => data[file]?[index] ?? 0;
 
   RuntimeState copyWith({
     RuntimeMode? mode,

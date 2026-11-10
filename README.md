@@ -6,17 +6,18 @@ at Centro de Ensino Literatus.
 - `packages/plc_core/` — pure Dart engine: bit addresses, data table, scan cycle.
 - `lib/` — Flutter app (web/Linux): ladder view with live power flow, I/O panel, RUN/STEP/STOP.
 
-Current slice: contacts and coils (XIC, XIO, OTE, OTL, OTU) with parallel branches, using
+Current slice: contacts and coils (XIC, XIO, OTE, OTL, OTU), timers (TON, TOF, RTO), counters
+(CTU, CTD) and RES, with parallel branches and the T4 / C5 data files, using
 bundled example programs. Spec: `literatus/docs/plc-simulator-mvp-spec.md`.
 
 ## Assets
 
-Ladder symbols are SVG files in `assets/ladder/` (`xic`, `xio`, `ote`, `otl`, `otu`, `branch`).
+Ladder symbols are SVG files in `assets/ladder/` (`xic`, `xio`, `ote`, `otl`, `otu`, `ton`, `tof`, `rto`, `ctu`, `ctd`, `res`, `branch`).
 `lib/theme/ladder_assets.dart` is the only mapping from mnemonic to file and is used by both
 the rung view and the palette. To change a symbol, replace its SVG (or edit that map). Draw
 black strokes on a transparent background: the app tints them with the theme colors
 (energized / off). Instruction symbols use a 24x32 viewBox (the wire is drawn by the app on
-both sides); the branch icon is only shown in the palette (48x32).
+both sides; timers, counters and RES use 28x24 palette icons, and the app draws their box in the rung itself); the branch icon is only shown in the palette (48x32).
 
 ## Commands
 

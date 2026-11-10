@@ -17,6 +17,12 @@ abstract final class LadderAssets {
     'OTE': 'assets/ladder/ote.svg',
     'OTL': 'assets/ladder/otl.svg',
     'OTU': 'assets/ladder/otu.svg',
+    'TON': 'assets/ladder/ton.svg',
+    'TOF': 'assets/ladder/tof.svg',
+    'RTO': 'assets/ladder/rto.svg',
+    'CTU': 'assets/ladder/ctu.svg',
+    'CTD': 'assets/ladder/ctd.svg',
+    'RES': 'assets/ladder/res.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

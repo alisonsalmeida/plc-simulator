@@ -6,6 +6,7 @@ import '../../../controllers/program.controller.dart';
 import '../../../models/runtime_state.model.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/ladder_assets.dart';
+import 'box_cell.dart';
 import 'rung_actions.dart';
 
 /// Width of the gutter left of the left power rail (holds the rung number).
@@ -15,6 +16,7 @@ const _cellW = 100.0;
 const _slotW = 20.0;
 const _joinW = 5.0;
 const _glyphW = 28.0;
+const _resGlyphW = 44.0; // the "(RES)" coil
 const _glyphH = 24.0;
 const _lineH = 14.0; // address line above the symbol and bit line below it
 const _fillMinW = 40.0; // minimum length of the stretchy wire in front of the outputs
@@ -33,6 +35,7 @@ double _seriesWidth(List<RungElement> elements) =>
     (elements.length + 1) * _slotW + elements.fold(0.0, (w, e) => w + _elementWidth(e));
 
 double _elementWidth(RungElement e) => switch (e) {
+      Ton() || Tof() || Rto() || Ctu() || Ctd() => boxCellW,
       Instruction() => _cellW,
       Branch(:final paths) =>
         2 * _joinW + paths.fold(0.0, (w, p) => w > _seriesWidth(p) ? w : _seriesWidth(p)),
@@ -51,14 +54,18 @@ double _textHeight(String text, double width) {
 
 double _boxHeight(String text) => _textHeight(text, _cellW - 6) + 4;
 
-/// Height above the symbol of an instruction: description box, symbol box, address line.
+/// Height above the wire of an instruction cell: description box, symbol box and, for a
+/// glyph, the address line. A box instruction reaches [boxWireY] down from its top edge, so
+/// the bands sit above that and the wire is half a glyph below the same point.
 double _cellTop(Instruction ins, Program program) {
-  final description = program.descriptionFor(ins.address);
-  final symbol = program.symbolFor(ins.address);
+  final description = program.descriptionOf(ins);
+  final symbol = program.symbolOf(ins);
   return (description == null ? 0 : _boxHeight(description)) +
       (symbol == null ? 0 : _boxHeight(symbol)) +
-      _lineH;
+      (_isBox(ins) ? boxWireY - _glyphH / 2 : _lineH);
 }
+
+bool _isBox(RungElement e) => e is BoxInstruction && e is! Res;
 
 /// Height of a series above its wire: the tallest cell (a branch counts as its first path).
 double _seriesTop(List<RungElement> elements, Program program) {
@@ -359,12 +366,13 @@ class _Ladder {
   /// by their examined bit, coils by the output bit, OTU by the rung power.
   bool _isTrue(Instruction ins, bool powerOut) {
     if (editable || runtime.data.isEmpty) return false;
-    final bit = runtime.bit(ins.address);
     return switch (ins) {
-      Xic() => bit,
-      Xio() => !bit,
-      Ote() || Otl() => bit,
-      Otu() => powerOut,
+      Xic(:final address) => runtime.bit(address),
+      Xio(:final address) => !runtime.bit(address),
+      Ote(:final address) || Otl(:final address) => runtime.bit(address),
+      Otu() || Res() => powerOut,
+      // Boxes are highlighted by BoxCell from their own status bits.
+      TimerInstruction() || CounterInstruction() => false,
     };
   }
 
@@ -399,14 +407,26 @@ class _Ladder {
       switch (elements[i]) {
         case final Instruction ins:
           final out = _consume();
-          children.add(_Cell(
-            instruction: ins,
-            symbol: program.symbolFor(ins.address),
-            description: program.descriptionFor(ins.address),
-            top: top,
-            energized: _isTrue(ins, out),
-            onTap: editable ? () => actions.editInstruction(path, ins) : null,
-          ));
+          final onTap = editable ? () => actions.editInstruction(path, ins) : null;
+          children.add(switch (ins) {
+            final BoxInstruction box when _isBox(box) => BoxCell(
+                instruction: box,
+                above: top - (boxWireY - _glyphH / 2),
+                symbol: program.symbolOf(ins),
+                description: program.descriptionOf(ins),
+                runtime: runtime,
+                online: !editable && runtime.data.isNotEmpty,
+                onTap: onTap,
+              ),
+            _ => _Cell(
+                instruction: ins,
+                symbol: program.symbolOf(ins),
+                description: program.descriptionOf(ins),
+                top: top,
+                energized: _isTrue(ins, out),
+                onTap: onTap,
+              ),
+          });
         case final Branch branch:
           children.add(_branch(branch, path, top));
       }
@@ -625,8 +645,14 @@ class _Cell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final address = instruction.address;
-    final side = (_cellW - _glyphW) / 2;
+    final ins = instruction;
+    final isRes = ins is Res;
+    final glyphW = isRes ? _resGlyphW : _glyphW;
+    final (topText, bottomText) = switch (ins) {
+      BitInstruction(:final address) => ('${address.file.prefix}:${address.word}', address.bitLabel),
+      BoxInstruction(:final element) => (element.toString(), ''),
+    };
+    final side = (_cellW - glyphW) / 2;
     final wireY = _glyphH / 2;
     Widget box(String text, Color color) => Container(
           width: _cellW,
@@ -653,7 +679,7 @@ class _Cell extends StatelessWidget {
               child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
                 if (description != null) box(description!, LadderStyle.commentBand),
                 if (symbol != null) box(symbol!, LadderStyle.titleBand),
-                line('${address.file.prefix}:${address.word}'),
+                line(topText),
               ]),
             ),
             SizedBox(
@@ -661,20 +687,39 @@ class _Cell extends StatelessWidget {
               child: Stack(children: [
                 Positioned(left: 0, width: side, top: wireY, height: 1, child: _rail()),
                 Positioned(right: 0, width: side, top: wireY, height: 1, child: _rail()),
-                if (energized) Positioned(left: side, top: 0, child: _Highlight(instruction.isOutput)),
-                Positioned(
-                  left: side,
-                  top: 0,
-                  child: ladderSymbol(
-                    instruction.mnemonic,
-                    color: LadderStyle.wire,
-                    width: _glyphW,
+                if (isRes)
+                  Positioned(
+                    left: side,
+                    top: 0,
+                    width: glyphW,
                     height: _glyphH,
+                    child: Center(
+                      child: Text(
+                        '(RES)',
+                        textScaler: TextScaler.noScaling,
+                        style: LadderStyle.text.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: energized ? LadderStyle.energized : LadderStyle.wire,
+                        ),
+                      ),
+                    ),
+                  )
+                else ...[
+                  if (energized) Positioned(left: side, top: 0, child: _Highlight(ins.isOutput)),
+                  Positioned(
+                    left: side,
+                    top: 0,
+                    child: ladderSymbol(
+                      ins.mnemonic,
+                      color: LadderStyle.wire,
+                      width: _glyphW,
+                      height: _glyphH,
+                    ),
                   ),
-                ),
+                ],
               ]),
             ),
-            line('${address.bit}'),
+            line(bottomText),
           ]),
         ),
       ),

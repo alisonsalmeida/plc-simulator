@@ -16,10 +16,22 @@ class ElementEditController extends Notifier<void> {
   void addPath(int rung, List<int> branchPath, RungElement first) =>
       _edit(rung, (r) => addBranchPath(r, branchPath, first));
 
-  /// Keeps the instruction's mnemonic and changes its [address].
-  void updateInstruction(int rung, List<int> path, String address) => _edit(rung, (r) {
+  /// Keeps the instruction's mnemonic and changes its [address]; [timeBase] and [preset]
+  /// apply to timers and counters.
+  void updateInstruction(
+    int rung,
+    List<int> path,
+    String address, {
+    TimeBase timeBase = TimeBase.second,
+    int preset = 0,
+  }) =>
+      _edit(rung, (r) {
         final old = elementAt(r, path) as Instruction;
-        return replaceAt(r, path, Instruction.create(old.mnemonic, address));
+        return replaceAt(
+          r,
+          path,
+          Instruction.create(old.mnemonic, address, timeBase: timeBase, preset: preset),
+        );
       });
 
   void deleteElement(int rung, List<int> path) => _edit(rung, (r) => removeAt(r, path));

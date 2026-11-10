@@ -23,7 +23,7 @@ class RungActions {
     final edit = ref.read(rungEditProvider.notifier);
     if (input.symbol.isNotEmpty) edit.setSymbol(input.address, input.symbol);
     if (input.description.isNotEmpty) edit.setDescription(input.address, input.description);
-    return Instruction.create(tool, input.address);
+    return Instruction.create(tool, input.address, timeBase: input.timeBase, preset: input.preset);
   }
 
   Future<void> dropOnSlot(List<int> slot, String tool) async {
@@ -40,9 +40,17 @@ class RungActions {
     final input = await showInstructionDialog(
       context,
       mnemonic: ins.mnemonic,
-      address: ins.address.toString(),
-      symbol: program.symbolFor(ins.address) ?? '',
-      description: program.descriptionFor(ins.address) ?? '',
+      address: ins.target,
+      symbol: program.symbolOf(ins) ?? '',
+      description: program.descriptionOf(ins) ?? '',
+      timeBase: switch (ins) {
+        TimerInstruction(:final timeBase) => timeBase,
+        _ => TimeBase.second,
+      },
+      preset: switch (ins) {
+        TimerInstruction(:final preset) || CounterInstruction(:final preset) => preset,
+        _ => 0,
+      },
       canDelete: true,
     );
     if (input == null || !context.mounted) return;
@@ -51,7 +59,7 @@ class RungActions {
       edit.deleteElement(rung, path);
       return;
     }
-    if (input.address != ins.address.toString()) edit.updateInstruction(rung, path, input.address);
+    edit.updateInstruction(rung, path, input.address, timeBase: input.timeBase, preset: input.preset);
     final names = ref.read(rungEditProvider.notifier);
     names.setSymbol(input.address, input.symbol);
     names.setDescription(input.address, input.description);
