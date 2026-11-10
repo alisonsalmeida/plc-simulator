@@ -53,7 +53,14 @@ class BoxCell extends StatelessWidget {
         Ctu() => _bit(CounterBit.cu),
         Ctd() => _bit(CounterBit.cd),
         WordInstruction() => online && powered,
+        final CompareInstruction c => online && c.holds(_read),
+        final Lim l => online && l.holds(_read),
         _ => false,
+      };
+
+  int _read(Operand o) => switch (o) {
+        Constant(:final value) => value,
+        WordAddress() => runtime.word(o),
       };
 
   static String titleOf(Instruction i) => switch (i) {
@@ -65,16 +72,30 @@ class BoxCell extends StatelessWidget {
         Mov() => 'Move',
         Mvm() => 'Masked Move',
         Clr() => 'Clear',
+        Equ() => 'Equal',
+        Neq() => 'Not Equal',
+        Les() => 'Less Than',
+        Leq() => 'Less Than or Eql',
+        Grt() => 'Greater Than',
+        Geq() => 'Grtr Than or Eql',
+        Lim() => 'Limit Test',
         _ => '',
       };
 
   @override
   Widget build(BuildContext context) {
     final ins = instruction;
-    final isWord = ins is WordInstruction;
+    final singleWire = ins is! BoxInstruction;
     final isTimer = ins is TimerInstruction;
     final rows = <(String, String)>[
-      if (ins is WordInstruction) ..._wordRows(ins) else ...[
+      if (ins is WordInstruction) ..._wordRows(ins) else if (ins is CompareInstruction) ...[
+        ..._operandRows('Source A', ins.sourceA),
+        ..._operandRows('Source B', ins.sourceB),
+      ] else if (ins is Lim) ...[
+        ..._operandRows('Low Lim', ins.low),
+        ..._operandRows('Test', ins.test),
+        ..._operandRows('High Lim', ins.high),
+      ] else ...[
         (isTimer ? 'Timer' : 'Counter', _element.toString()),
         if (ins is TimerInstruction) ('Time Base', ins.timeBase.label),
         ('Preset', '${switch (ins) {
@@ -136,7 +157,7 @@ class BoxCell extends StatelessWidget {
                     ]),
                   ),
                 ),
-                if (isWord)
+                if (singleWire)
                   Positioned(
                     left: _boxW,
                     width: boxCellW - _boxW,
@@ -158,21 +179,20 @@ class BoxCell extends StatelessWidget {
 
   /// Operand rows of a word instruction: an address is followed by its live value
   /// (`100<`), a constant shows only the number.
-  List<(String, String)> _wordRows(WordInstruction ins) {
-    List<(String, String)> operand(String label, Operand o, {bool hex = false}) => switch (o) {
-          Constant() => [(label, o.format(hex: hex))],
-          WordAddress() => [(label, o.toString()), ('', '${online ? runtime.word(o) : 0}<')],
-        };
-    return switch (ins) {
-      Mov() => [...operand('Source', ins.source), ...operand('Dest', ins.dest)],
-      Mvm() => [
-          ...operand('Source', ins.source),
-          ...operand('Mask', ins.mask, hex: true),
-          ...operand('Dest', ins.dest),
-        ],
-      Clr() => operand('Dest', ins.dest),
-    };
-  }
+  List<(String, String)> _wordRows(WordInstruction ins) => switch (ins) {
+        Mov() => [..._operandRows('Source', ins.source), ..._operandRows('Dest', ins.dest)],
+        Mvm() => [
+            ..._operandRows('Source', ins.source),
+            ..._operandRows('Mask', ins.mask, hex: true),
+            ..._operandRows('Dest', ins.dest),
+          ],
+        Clr() => _operandRows('Dest', ins.dest),
+      };
+
+  List<(String, String)> _operandRows(String label, Operand o, {bool hex = false}) => switch (o) {
+        Constant() => [(label, o.format(hex: hex))],
+        WordAddress() => [(label, o.toString()), ('', '${online ? runtime.word(o) : 0}<')],
+      };
 
   Widget _row(String label, {String? value, bool bold = false}) => SizedBox(
         height: _rowH,

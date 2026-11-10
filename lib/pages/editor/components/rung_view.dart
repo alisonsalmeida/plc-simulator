@@ -35,7 +35,7 @@ double _seriesWidth(List<RungElement> elements) =>
     (elements.length + 1) * _slotW + elements.fold(0.0, (w, e) => w + _elementWidth(e));
 
 double _elementWidth(RungElement e) => switch (e) {
-      Ton() || Tof() || Rto() || Ctu() || Ctd() || WordInstruction() => boxCellW,
+      Ton() || Tof() || Rto() || Ctu() || Ctd() || WordInstruction() || CompareInstruction() || Lim() => boxCellW,
       Instruction() => _cellW,
       Branch(:final paths) =>
         2 * _joinW + paths.fold(0.0, (w, p) => w > _seriesWidth(p) ? w : _seriesWidth(p)),
@@ -65,7 +65,10 @@ double _cellTop(Instruction ins, Program program) {
       (_isBox(ins) ? boxWireY - _glyphH / 2 : _lineH);
 }
 
-bool _isBox(RungElement e) => (e is BoxInstruction && e is! Res) || e is WordInstruction;
+bool _isBox(RungElement e) => (e is BoxInstruction && e is! Res) ||
+    e is WordInstruction ||
+    e is CompareInstruction ||
+    e is Lim;
 
 /// Height of a series above its wire: the tallest cell (a branch counts as its first path).
 double _seriesTop(List<RungElement> elements, Program program) {
@@ -372,7 +375,12 @@ class _Ladder {
       Ote(:final address) || Otl(:final address) => runtime.bit(address),
       Otu() || Res() => powerOut,
       // Boxes are highlighted by BoxCell from their own status bits.
-      TimerInstruction() || CounterInstruction() || WordInstruction() => false,
+      TimerInstruction() ||
+      CounterInstruction() ||
+      WordInstruction() ||
+      CompareInstruction() ||
+      Lim() =>
+        false,
     };
   }
 
@@ -653,6 +661,7 @@ class _Cell extends StatelessWidget {
       BitInstruction(:final address) => ('${address.file.prefix}:${address.word}', address.bitLabel),
       BoxInstruction(:final element) => (element.toString(), ''),
       WordInstruction(:final dest) => (dest.toString(), ''),
+      CompareInstruction() || Lim() => (ins.target, ''),
     };
     final side = (_cellW - glyphW) / 2;
     final wireY = _glyphH / 2;

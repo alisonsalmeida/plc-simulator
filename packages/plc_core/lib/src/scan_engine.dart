@@ -73,6 +73,8 @@ class ScanEngine {
         CounterInstruction() => _counter(e, power),
         Res(:final element) => _reset(element, power),
         WordInstruction() => _move(e, power),
+        CompareInstruction() => power && e.holds(_value),
+        Lim() => power && e.holds(_value),
       };
       if (e is Instruction) trace.add(power);
     }
@@ -174,12 +176,15 @@ class ScanEngine {
     return power;
   }
 
+  /// Signed value of an operand: the constant itself or the word it addresses.
+  int _value(Operand o) => switch (o) {
+        Constant(:final value) => value,
+        WordAddress() => memory.readWord(o),
+      };
+
   bool _move(WordInstruction w, bool power) {
     if (!power) return power;
-    int value(Operand o) => switch (o) {
-          Constant(:final value) => value,
-          WordAddress() => memory.readWord(o),
-        };
+    final value = _value;
     switch (w) {
       case Mov(:final source, :final dest):
         memory.writeWord(dest, value(source));

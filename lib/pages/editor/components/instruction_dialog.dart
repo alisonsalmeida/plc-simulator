@@ -20,7 +20,9 @@ class InstructionInput {
   final TimeBase timeBase;
   final int preset;
 
-  /// Source and mask operands of MOV and MVM (canonical text); [address] holds the destination.
+  /// Operands of word and compare instructions (canonical text). MOV/MVM: source and mask,
+  /// [address] is the destination. EQU..GEQ: [address] is Source A, [source] Source B. LIM:
+  /// [source] is the low limit, [address] the test value, [mask] the high limit.
   final String source;
   final String mask;
   final bool delete;
@@ -98,15 +100,18 @@ class _InstructionDialogState extends State<_InstructionDialog> {
 
   bool get _isTimer => const {'TON', 'TOF', 'RTO'}.contains(widget.mnemonic);
   bool get _isWord => const {'MOV', 'MVM', 'CLR'}.contains(widget.mnemonic);
-  bool get _hasSource => widget.mnemonic == 'MOV' || widget.mnemonic == 'MVM';
-  bool get _hasMask => widget.mnemonic == 'MVM';
+  bool get _isLimit => widget.mnemonic == 'LIM';
+  bool get _isCompare => const {'EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ'}.contains(widget.mnemonic);
+  bool get _hasSource => const {'MOV', 'MVM'}.contains(widget.mnemonic) || _isCompare || _isLimit;
+  bool get _hasMask => widget.mnemonic == 'MVM' || _isLimit;
   bool get _isCounter => const {'CTU', 'CTD'}.contains(widget.mnemonic);
 
   String get _hint => switch (widget.mnemonic) {
         'TON' || 'TOF' || 'RTO' => 'T4:0',
         'CTU' || 'CTD' => 'C5:0',
         'RES' => 'T4:0 ou C5:0',
-        'MOV' || 'MVM' || 'CLR' => 'N7:0',
+        'MOV' || 'MVM' || 'CLR' || 'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'N7:0',
+        'LIM' => 'N7:0 ou 50',
         _ => 'I:0/0',
       };
 
@@ -132,17 +137,14 @@ class _InstructionDialogState extends State<_InstructionDialog> {
     }
     Operand? source;
     Operand? mask;
-    if (_isWord) {
-      // The destination is checked on its own; the operands are checked one by one.
-      try {
-        address = WordAddress.parse(_address.text).toString();
-      } on FormatException {
-        address = null;
-      }
+    if (_isWord || _isCompare || _isLimit) {
+      // The address field is checked on its own; the operands are checked one by one.
+      // The test value of LIM may be a constant, the other address fields are word addresses.
+      address = _operand(_address.text, true, constant: _isLimit)?.format();
       source = _operand(_source.text, _hasSource);
-      mask = _operand(_mask.text, _hasMask, mask: true);
+      mask = _operand(_mask.text, _hasMask, mask: !_isLimit);
     }
-    final operandsOk = !_isWord || ((!_hasSource || source != null) && (!_hasMask || mask != null));
+    final operandsOk = !(_isWord || _isCompare || _isLimit) || ((!_hasSource || source != null) && (!_hasMask || mask != null));
     setState(() {
       _error = address == null ? 'Endereço inválido' : null;
       _presetError = presetOk ? null : 'Preset inválido (0 a $maxPreset)';
@@ -159,56 +161,69 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         timeBase: _timeBase,
         preset: preset ?? 0,
         source: source?.format() ?? '',
-        mask: mask?.format(hex: true) ?? '',
+        mask: mask?.format(hex: !_isLimit) ?? '',
       ),
     );
   }
 
   /// The operand typed in [text], or null when it is invalid; skipped fields give null too.
-  static Operand? _operand(String text, bool used, {bool mask = false}) {
+  static Operand? _operand(String text, bool used, {bool mask = false, bool constant = true}) {
     if (!used) return null;
     try {
-      return Operand.parse(text, mask: mask);
+      return constant ? Operand.parse(text, mask: mask) : WordAddress.parse(text);
     } on FormatException {
       return null;
     }
   }
 
+  Widget _sourceField() => TextField(
+        controller: _source,
+        autofocus: !_isCompare,
+        decoration: InputDecoration(
+          labelText: switch (widget.mnemonic) {
+            'LIM' => 'Limite inferior',
+            'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'Origem B',
+            _ => 'Origem',
+          },
+          hintText: 'N7:0 ou 100',
+          errorText: _sourceError,
+        ),
+        onSubmitted: (_) => _submit(),
+      );
+
+  Widget _maskField() => TextField(
+        controller: _mask,
+        decoration: InputDecoration(
+          labelText: _isLimit ? 'Limite superior' : 'Máscara',
+          hintText: _isLimit ? 'N7:0 ou 100' : '00FFh',
+          errorText: _maskError,
+        ),
+        onSubmitted: (_) => _submit(),
+      );
+
+  Widget _addressField() => TextField(
+        controller: _address,
+        autofocus: _isCompare || !_hasSource,
+        decoration: InputDecoration(
+          labelText: _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
+          hintText: _hint,
+          errorText: _error,
+        ),
+        onSubmitted: (_) => _submit(),
+      );
+
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Instrução ${widget.mnemonic}'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          if (_hasSource)
-            TextField(
-              controller: _source,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Origem',
-                hintText: 'N7:0 ou 100',
-                errorText: _sourceError,
-              ),
-              onSubmitted: (_) => _submit(),
-            ),
-          if (_hasMask)
-            TextField(
-              controller: _mask,
-              decoration: InputDecoration(
-                labelText: 'Máscara',
-                hintText: '00FFh',
-                errorText: _maskError,
-              ),
-              onSubmitted: (_) => _submit(),
-            ),
-          TextField(
-            controller: _address,
-            autofocus: !_hasSource,
-            decoration: InputDecoration(
-              labelText: _isWord ? 'Destino' : 'Endereço',
-              hintText: _hint,
-              errorText: _error,
-            ),
-            onSubmitted: (_) => _submit(),
-          ),
+          // Fields in the order RSLogix shows them.
+          if (_isCompare) ...[_addressField(), _sourceField()]
+          else if (_isLimit) ...[_sourceField(), _addressField(), _maskField()]
+          else ...[
+            if (_hasSource) _sourceField(),
+            if (_hasMask) _maskField(),
+            _addressField(),
+          ],
           if (_isTimer)
             DropdownButtonFormField<TimeBase>(
               initialValue: _timeBase,

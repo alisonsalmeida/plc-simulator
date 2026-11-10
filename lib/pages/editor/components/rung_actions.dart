@@ -60,10 +60,13 @@ class RungActions {
       },
       source: switch (ins) {
         Mov(:final source) || Mvm(:final source) => source.format(),
+        CompareInstruction(:final sourceB) => sourceB.format(),
+        Lim(:final low) => low.format(),
         _ => '',
       },
       mask: switch (ins) {
         Mvm(:final mask) => mask.format(hex: true),
+        Lim(:final high) => high.format(),
         _ => '',
       },
       canDelete: true,

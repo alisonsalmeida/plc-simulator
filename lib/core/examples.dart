@@ -209,5 +209,27 @@ final ladderExamples = <LadderExample>[
       symbols: const {'I:0/0': 'S1_GRAVA', 'I:0/1': 'S2_COPIA', 'I:0/2': 'S3_ZERA'},
     ),
   ),
+  LadderExample(
+    name: 'Comparação de nível (GRT/LES/LIM)',
+    program: Program(
+      [
+        Rung(
+          [Grt('N7:0', '80'), Ote('O:0/0')],
+          title: 'COMPARAÇÃO DE NÍVEL',
+          comment: 'N7:0 é o nível do tanque (0 a 100). Altere-o na janela Data Files. '
+              'GRT: nível acima de 80 liga o alarme de nível alto.',
+        ),
+        Rung(
+          [Les('N7:0', '20'), Ote('O:0/1')],
+          comment: 'LES: nível abaixo de 20 liga o alarme de nível baixo.',
+        ),
+        Rung(
+          [Lim('20', 'N7:0', '80'), Ote('O:0/2')],
+          comment: 'LIM: nível entre 20 e 80 (inclusive) liga a lâmpada de nível normal.',
+        ),
+      ],
+      symbols: const {'N7:0': 'NIVEL_TANQUE', 'O:0/0': 'ALARME_ALTO', 'O:0/1': 'ALARME_BAIXO', 'O:0/2': 'NIVEL_NORMAL'},
+    ),
+  ),
   LadderExample(name: 'Novo programa', program: const Program([])),
 ];

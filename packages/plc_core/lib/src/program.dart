@@ -30,8 +30,11 @@ sealed class Instruction extends RungElement {
   /// Builds an instruction from its SLC 500 [mnemonic]: XIC, XIO, OTE, OTL, OTU (bit
   /// [address]); TON, TOF, RTO (`T4:n`, with [timeBase] and [preset]); CTU, CTD (`C5:n`,
   /// with [preset]); RES (`T4:n` or `C5:n`); MOV, MVM, CLR ([address] is the destination
-  /// word; [source] and [mask] are word addresses or constants, the mask may be hex). The
-  /// extra arguments are ignored where they do not apply.
+  /// word; [source] and [mask] are word addresses or constants, the mask may be hex);
+  /// EQU, NEQ, LES, LEQ, GRT, GEQ ([address] is Source A, a word address; [source] is
+  /// Source B); LIM ([source] is the low limit, [address] the test value, [mask] the high
+  /// limit; each a word address or constant). The extra arguments are ignored where they
+  /// do not apply.
   ///
   /// Throws [ArgumentError] for an unknown mnemonic or a preset outside 0..[maxPreset], and
   /// [FormatException] for a bad address or operand.
@@ -58,6 +61,13 @@ sealed class Instruction extends RungElement {
         'MOV' => Mov(source, address),
         'MVM' => Mvm(source, mask, address),
         'CLR' => Clr(address),
+        'EQU' => Equ(address, source),
+        'NEQ' => Neq(address, source),
+        'LES' => Les(address, source),
+        'LEQ' => Leq(address, source),
+        'GRT' => Grt(address, source),
+        'GEQ' => Geq(address, source),
+        'LIM' => Lim(source, address, mask),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -242,6 +252,112 @@ final class Clr extends WordInstruction {
 
   @override
   String get mnemonic => 'CLR';
+}
+
+/// Compare instructions: input (condition) instructions that pass power when the
+/// comparison of the signed 16-bit values of [sourceA] and [sourceB] holds. They write nothing.
+sealed class CompareInstruction extends Instruction {
+  CompareInstruction(String sourceA, String sourceB)
+      : sourceA = WordAddress.parse(sourceA),
+        sourceB = Operand.parse(sourceB);
+
+  final WordAddress sourceA;
+  final Operand sourceB;
+
+  @override
+  bool get isOutput => false;
+
+  @override
+  String get target => sourceA.toString();
+
+  /// The comparison of [a] and [b].
+  bool compare(int a, int b);
+
+  /// Whether the condition holds, reading each operand through [read].
+  bool holds(int Function(Operand) read) => compare(read(sourceA), read(sourceB));
+}
+
+/// Equal: A == B.
+final class Equ extends CompareInstruction {
+  Equ(super.sourceA, super.sourceB);
+  @override
+  String get mnemonic => 'EQU';
+  @override
+  bool compare(int a, int b) => a == b;
+}
+
+/// Not equal: A != B.
+final class Neq extends CompareInstruction {
+  Neq(super.sourceA, super.sourceB);
+  @override
+  String get mnemonic => 'NEQ';
+  @override
+  bool compare(int a, int b) => a != b;
+}
+
+/// Less than: A < B.
+final class Les extends CompareInstruction {
+  Les(super.sourceA, super.sourceB);
+  @override
+  String get mnemonic => 'LES';
+  @override
+  bool compare(int a, int b) => a < b;
+}
+
+/// Less than or equal: A <= B.
+final class Leq extends CompareInstruction {
+  Leq(super.sourceA, super.sourceB);
+  @override
+  String get mnemonic => 'LEQ';
+  @override
+  bool compare(int a, int b) => a <= b;
+}
+
+/// Greater than: A > B.
+final class Grt extends CompareInstruction {
+  Grt(super.sourceA, super.sourceB);
+  @override
+  String get mnemonic => 'GRT';
+  @override
+  bool compare(int a, int b) => a > b;
+}
+
+/// Greater than or equal: A >= B.
+final class Geq extends CompareInstruction {
+  Geq(super.sourceA, super.sourceB);
+  @override
+  String get mnemonic => 'GEQ';
+  @override
+  bool compare(int a, int b) => a >= b;
+}
+
+/// Limit test (input instruction): with low <= high it is true when low <= test <= high;
+/// with low > high it is true when test >= low or test <= high. Each operand is a word
+/// address or a constant.
+final class Lim extends Instruction {
+  Lim(String low, String test, String high)
+      : low = Operand.parse(low),
+        test = Operand.parse(test),
+        high = Operand.parse(high);
+
+  final Operand low;
+  final Operand test;
+  final Operand high;
+
+  @override
+  String get mnemonic => 'LIM';
+  @override
+  bool get isOutput => false;
+  @override
+  String get target => test.toString();
+
+  /// Whether the test value is within the limits, reading each operand through [read].
+  bool holds(int Function(Operand) read) {
+    final lo = read(low);
+    final t = read(test);
+    final hi = read(high);
+    return lo <= hi ? lo <= t && t <= hi : t >= lo || t <= hi;
+  }
 }
 
 /// Parallel branch: power out is the OR of every path.

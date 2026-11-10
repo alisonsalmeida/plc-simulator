@@ -19,7 +19,7 @@ class InstructionToolbar extends ConsumerStatefulWidget {
 
 class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
   static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Move/Logical'];
-  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Move/Logical'};
+  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Move/Logical'};
   static const _tools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
     'XIC': 'XIC – Contato NA',
@@ -42,6 +42,17 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'MOV': 'MOV – Mover',
     'MVM': 'MVM – Mover com máscara',
     'CLR': 'CLR – Zerar',
+  };
+
+  static const _compareTools = {
+    LadderAssets.branch: 'BRANCH – Ramo paralelo',
+    'EQU': 'EQU – Igual',
+    'NEQ': 'NEQ – Diferente',
+    'LES': 'LES – Menor que',
+    'LEQ': 'LEQ – Menor ou igual',
+    'GRT': 'GRT – Maior que',
+    'GEQ': 'GEQ – Maior ou igual',
+    'LIM': 'LIM – Teste de limite',
   };
 
   String _tab = 'User';
@@ -74,6 +85,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
             ),
             for (final MapEntry(:key, :value) in (switch (_tab) {
               'Timer/Counter' => _timerCounterTools,
+              'Compare' => _compareTools,
               'Move/Logical' => _moveTools,
               _ => _tools,
             }).entries)

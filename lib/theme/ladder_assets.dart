@@ -26,6 +26,13 @@ abstract final class LadderAssets {
     'MOV': 'assets/ladder/mov.svg',
     'MVM': 'assets/ladder/mvm.svg',
     'CLR': 'assets/ladder/clr.svg',
+    'EQU': 'assets/ladder/equ.svg',
+    'NEQ': 'assets/ladder/neq.svg',
+    'LES': 'assets/ladder/les.svg',
+    'LEQ': 'assets/ladder/leq.svg',
+    'GRT': 'assets/ladder/grt.svg',
+    'GEQ': 'assets/ladder/geq.svg',
+    'LIM': 'assets/ladder/lim.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };
