@@ -15,6 +15,7 @@ class RuntimeState {
     this.powerFlow = const [],
     this.scanCount = 0,
     this.data = const {},
+    this.forces = const {},
   });
 
   final RuntimeMode mode;
@@ -34,6 +35,12 @@ class RuntimeState {
 
   /// Data table words after the last scan, per file; empty before the first scan.
   final Map<BitFile, List<int>> data;
+
+  /// Forced I/O bits and the value each is held at.
+  final Map<BitAddress, bool> forces;
+
+  bool get hasForces => forces.isNotEmpty;
+  bool? forceOf(BitAddress a) => forces[a];
 
   bool input(int bit) => (inputs >> bit) & 1 == 1;
   bool output(int bit) => (outputs >> bit) & 1 == 1;
@@ -66,6 +73,7 @@ class RuntimeState {
     List<List<bool>>? powerFlow,
     int? scanCount,
     Map<BitFile, List<int>>? data,
+    Map<BitAddress, bool>? forces,
   }) =>
       RuntimeState(
         mode: mode ?? this.mode,
@@ -76,6 +84,7 @@ class RuntimeState {
         powerFlow: powerFlow ?? this.powerFlow,
         scanCount: scanCount ?? this.scanCount,
         data: data ?? this.data,
+        forces: forces ?? this.forces,
       );
 }
 

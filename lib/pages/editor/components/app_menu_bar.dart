@@ -29,6 +29,7 @@ class AppMenuBar extends ConsumerWidget {
     final view = ref.watch(mainViewProvider);
     final dataOpen = ref.watch(dataTableProvider.select((s) => s.open));
     final treeOpen = ref.watch(projectTreeProvider.select((s) => s.isOpen));
+    final hasForces = ref.watch(runtimeProvider.select((s) => s.hasForces));
     final runtime = ref.read(runtimeProvider.notifier);
     final stopped = mode == RuntimeMode.stop;
     final compact = ButtonStyle(
@@ -212,6 +213,11 @@ class AppMenuBar extends ConsumerWidget {
                     style: compact,
                     onPressed: stopped ? null : runtime.stop,
                     child: const Text('STOP'),
+                  ),
+                  MenuItemButton(
+                    style: compact,
+                    onPressed: hasForces ? runtime.clearAllForces : null,
+                    child: const Text('Remover Todos os Forçamentos'),
                   ),
                 ],
                 child: const Text('Comunicação'),

@@ -47,6 +47,10 @@ class ScanEngine {
   /// at the end of each scan.
   final List<int> analogOutputImage = List.filled(analogOutputChannels, 0);
 
+  /// Forced bits (I:/O: only): an input force overrides the physical input at the start of
+  /// each scan, an output force overrides the ladder result at the end of each scan.
+  final Map<BitAddress, bool> forces = {};
+
   bool _firstScan = true;
 
   /// Time not yet turned into timer ticks, per timer, in microseconds.
@@ -74,6 +78,7 @@ class ScanEngine {
     for (var ch = 0; ch < analogInputChannels; ch++) {
       memory.setWord(BitFile.input, 1 + ch, analogInputImage[ch]);
     }
+    _applyForces(BitFile.input);
     memory.writeBit(firstScanBit, _firstScan);
     final rungs = <List<bool>>[];
     for (final rung in program.rungs) {
@@ -81,12 +86,32 @@ class ScanEngine {
       _series(rung.elements, true, trace, elapsed.inMicroseconds);
       rungs.add(trace);
     }
+    _applyForces(BitFile.output);
     outputImage = memory.word(BitFile.output, 0);
     for (var ch = 0; ch < analogOutputChannels; ch++) {
       analogOutputImage[ch] = memory.word(BitFile.output, 1 + ch);
     }
     _firstScan = false;
     return ScanTrace(rungs);
+  }
+
+  /// Sets ([value] non-null) or removes ([value] null) the force on [address]; a new force
+  /// is written to the data table at once.
+  void setForce(BitAddress address, bool? value) {
+    if (value == null) {
+      forces.remove(address);
+      return;
+    }
+    forces[address] = value;
+    memory.writeBit(address, value);
+  }
+
+  void clearAllForces() => forces.clear();
+
+  void _applyForces(BitFile file) {
+    for (final entry in forces.entries) {
+      if (entry.key.file == file) memory.writeBit(entry.key, entry.value);
+    }
   }
 
   bool _series(List<RungElement> elements, bool power, List<bool> trace, int us) {

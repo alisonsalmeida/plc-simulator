@@ -32,5 +32,11 @@ abstract class IRuntimeService {
 
   /// Sets one data table bit to [value]; works in STOP and RUN.
   void setBit(BitAddress address, bool value);
+
+  /// Forces an I:/O: bit to [value] (null removes the force); works in STOP and RUN.
+  void setForce(BitAddress address, bool? value);
+
+  /// Removes every force.
+  void clearAllForces();
   void dispose();
 }

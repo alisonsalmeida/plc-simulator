@@ -2,11 +2,13 @@
 
 ## Next
 
-- [ ] I/O bit forcing (Forces ON/OFF) with indicators in data table and status bar
-- [ ] Bundled curriculum examples: motor reversing with interlock, star-delta starter, batch counter (ADD/MOD), complete tank process
+- [ ] Pluggable simulation peripherals: 7-segment display (BCD and direct), thumbwheel switch, traffic light, conveyor with separator
+- [ ] BCD conversion instructions: TOD (To BCD) and FRD (From BCD)
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
+- [x] I/O bit forcing (Forces ON/OFF) with indicators in data table and status bar
+- [x] Bundled curriculum examples: motor reversing with interlock, star-delta starter, batch counter (ADD/MOD), complete tank process
 - [x] Remaining curriculum instructions: MOD (modulo/batches), XPY/EXPT (power), SWP (swap bytes), ONS (one-shot rising)
 - [x] F8 Data File (32-bit float) and INT <-> REAL conversion for flow and tank volume
 - [x] RSLogix-style window chrome, stage 2: project tree, data files, find/replace, status bar

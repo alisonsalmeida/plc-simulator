@@ -299,5 +299,187 @@ final ladderExamples = <LadderExample>[
       },
     ),
   ),
+  LadderExample(
+    name: 'Partida com reversão (intertravamento)',
+    momentaryInputs: const {0, 1, 2},
+    program: Program(
+      [
+        Rung(
+          [
+            Branch([
+              [Xic('I:0/1')],
+              [Xic('O:0/0')],
+            ]),
+            Xio('I:0/0'),
+            Xio('O:0/1'),
+            Ote('O:0/0'),
+          ],
+          title: 'PARTIDA NO SENTIDO HORÁRIO',
+          comment: 'B1 liga K1 (horário) e o contato de selo o mantém ligado. '
+              'O contato NF de K2 impede ligar K1 enquanto K2 estiver ligado (intertravamento).',
+        ),
+        Rung(
+          [
+            Branch([
+              [Xic('I:0/2')],
+              [Xic('O:0/1')],
+            ]),
+            Xio('I:0/0'),
+            Xio('O:0/0'),
+            Ote('O:0/1'),
+          ],
+          title: 'PARTIDA NO SENTIDO ANTI-HORÁRIO',
+          comment: 'B2 liga K2 (anti-horário) com selo. O contato NF de K1 garante que os dois '
+              'contatores nunca fiquem ligados ao mesmo tempo. B0 desliga geral.',
+        ),
+        Rung(
+          [Xic('O:0/0'), Ote('O:0/2')],
+          title: 'SINALEIROS',
+          comment: 'H1 acende com o motor girando no sentido horário.',
+        ),
+        Rung([Xic('O:0/1'), Ote('O:0/3')], comment: 'H2 acende com o motor girando no sentido anti-horário.'),
+      ],
+      symbols: const {
+        'I:0/0': 'B0_DESLIGA',
+        'I:0/1': 'B1_HORARIO',
+        'I:0/2': 'B2_ANTIHORARIO',
+        'O:0/0': 'K1_HORARIO',
+        'O:0/1': 'K2_ANTIHORARIO',
+        'O:0/2': 'H1_HORARIO',
+        'O:0/3': 'H2_ANTIHORARIO',
+      },
+    ),
+  ),
+  LadderExample(
+    name: 'Partida estrela-triângulo (temporizada)',
+    momentaryInputs: const {0, 1},
+    program: Program(
+      [
+        Rung(
+          [
+            Branch([
+              [Xic('I:0/1')],
+              [Xic('O:0/0')],
+            ]),
+            Xio('I:0/0'),
+            Ote('O:0/0'),
+          ],
+          title: 'CONTATOR PRINCIPAL',
+          comment: 'B1 liga K1 (principal) com selo; B0 desliga tudo.',
+        ),
+        Rung(
+          [Xic('O:0/0'), Ton('T4:0', TimeBase.second, 5)],
+          title: 'TEMPO DE PARTIDA',
+          comment: 'Com K1 ligado, o temporizador TON conta 5 s (base de 1,0 s) em estrela.',
+        ),
+        Rung(
+          [Xic('O:0/0'), Xio('T4:0/DN'), Xio('O:0/1'), Ote('O:0/2')],
+          title: 'ESTRELA',
+          comment: 'Enquanto o tempo não terminou, K3 (estrela) fica ligado, intertravado pelo NF de K2.',
+        ),
+        Rung(
+          [Xic('O:0/0'), Xic('T4:0/DN'), Xio('O:0/2'), Ote('O:0/1')],
+          title: 'TRIÂNGULO',
+          comment: 'Ao fim do tempo, K3 desliga e K2 (triângulo) liga, intertravado pelo NF de K3.',
+        ),
+        Rung([Xic('O:0/2'), Ote('O:0/3')], title: 'SINALEIROS', comment: 'H1: motor em estrela.'),
+        Rung([Xic('O:0/1'), Ote('O:0/4')], comment: 'H2: motor em triângulo.'),
+      ],
+      symbols: const {
+        'I:0/0': 'B0_DESLIGA',
+        'I:0/1': 'B1_LIGA',
+        'O:0/0': 'K1_PRINCIPAL',
+        'O:0/1': 'K2_TRIANGULO',
+        'O:0/2': 'K3_ESTRELA',
+        'O:0/3': 'H1_ESTRELA',
+        'O:0/4': 'H2_TRIANGULO',
+        'T4:0': 'T_PARTIDA',
+      },
+    ),
+  ),
+  LadderExample(
+    name: 'Totalizador de lotes (ADD / MOD)',
+    momentaryInputs: const {1, 2},
+    program: Program(
+      [
+        Rung(
+          [Xic('I:0/1'), Ons('B3:0/0'), Add('N7:0', '1', 'N7:0')],
+          title: 'TOTALIZADOR DE PEÇAS',
+          comment: 'S1 detecta a peça. ONS garante um único pulso por peça; ADD soma 1 ao total geral N7:0.',
+        ),
+        Rung(
+          [Mod('N7:0', '10', 'N7:1')],
+          comment: 'MOD: resto da divisão por 10, ou seja, peças na caixa atual (0 a 9).',
+        ),
+        Rung([Div('N7:0', '10', 'N7:2')], comment: 'DIV: caixas fechadas (10 peças por caixa).'),
+        Rung(
+          [Equ('N7:1', '0'), Grt('N7:0', '0'), Ote('O:0/0')],
+          comment: 'Caixa completa: resto 0 com total maior que zero acende H1.',
+        ),
+        Rung([Xic('I:0/2'), Clr('N7:0')], comment: 'Botão Zera: limpa o total geral.'),
+      ],
+      symbols: const {
+        'I:0/1': 'S1_PECA',
+        'I:0/2': 'B_ZERA',
+        'O:0/0': 'H1_CAIXA_CHEIA',
+        'N7:0': 'TOTAL_PECAS',
+        'N7:1': 'PECAS_NA_CAIXA',
+        'N7:2': 'CAIXAS_FECHADAS',
+      },
+    ),
+  ),
+  LadderExample(
+    name: 'Processo de tanque e histerese (analógico + IHM)',
+    program: Program(
+      [
+        Rung(
+          [Scl('I:1.0', '7630', '-2500', 'N7:1')],
+          title: 'NÍVEL DO TANQUE',
+          comment: 'I:1.0 é o sensor de nível 4–20 mA. SCL: N7:1 = nível em 0,01 % (0 a 10000).',
+        ),
+        Rung([Div('N7:1', '100', 'N7:0')], comment: 'DIV: nível em porcentagem (0 a 100) em N7:0.'),
+        Rung(
+          [
+            Branch([
+              [Leq('N7:0', '20')],
+              [Xic('O:0/0')],
+            ]),
+            Les('N7:0', '80'),
+            Ote('O:0/0'),
+          ],
+          title: 'HISTERESE',
+          comment: 'Nível <= 20 %: liga a bomba de enchimento, com selo até atingir 80 %.',
+        ),
+        Rung(
+          [
+            Branch([
+              [Geq('N7:0', '80')],
+              [Xic('O:0/1')],
+            ]),
+            Grt('N7:0', '20'),
+            Ote('O:0/1'),
+          ],
+          comment: 'Nível >= 80 %: a bomba desliga e a válvula de dreno abre, com selo até voltar a 20 %.',
+        ),
+        Rung(
+          [Scl('N7:1', '32764', '0', 'O:2.0')],
+          title: 'VÁLVULA PROPORCIONAL',
+          comment: 'SCL: O:2.0 acompanha o nível, de 0 a 32764 (0 a 10 V).',
+        ),
+        Rung([Grt('N7:0', '90'), Ote('O:0/2')], title: 'ALARMES', comment: 'Nível crítico alto (> 90 %).'),
+        Rung([Les('N7:0', '10'), Ote('O:0/3')], comment: 'Nível crítico baixo (< 10 %).'),
+      ],
+      symbols: const {
+        'I:1.0': 'SENSOR_NIVEL',
+        'N7:0': 'NIVEL_PCT',
+        'N7:1': 'NIVEL_CENTI_PCT',
+        'O:0/0': 'K_BOMBA_ENCHE',
+        'O:0/1': 'V_DRENO',
+        'O:0/2': 'AL_NIVEL_ALTO',
+        'O:0/3': 'AL_NIVEL_BAIXO',
+        'O:2.0': 'VALVULA_PROP',
+      },
+    ),
+  ),
   LadderExample(name: 'Novo programa', program: const Program([])),
 ];

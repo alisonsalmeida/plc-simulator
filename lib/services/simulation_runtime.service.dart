@@ -154,6 +154,24 @@ class SimulationRuntimeService implements IRuntimeService {
   }
 
   @override
+  void setForce(BitAddress address, bool? value) {
+    _engine!.setForce(address, value);
+    _emitForces();
+  }
+
+  @override
+  void clearAllForces() {
+    _engine!.clearAllForces();
+    _emitForces();
+  }
+
+  void _emitForces() => _emit(_state.copyWith(
+        forces: Map.unmodifiable(_engine!.forces),
+        outputs: _engine!.outputImage,
+        data: _snapshot(),
+      ));
+
+  @override
   void dispose() {
     _timer?.cancel();
     _states.close();

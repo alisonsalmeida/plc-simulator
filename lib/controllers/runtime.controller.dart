@@ -35,6 +35,7 @@ class RuntimeController extends Notifier<RuntimeState> {
   void step() => _service.step();
   void stop() => _service.stop();
   void setInput(int bit, bool value) => _service.setInput(bit, value);
+  void clearAllForces() => _service.clearAllForces();
 }
 
 final runtimeProvider = NotifierProvider<RuntimeController, RuntimeState>(RuntimeController.new);

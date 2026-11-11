@@ -87,7 +87,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('file-O')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('bit-O:0/0')));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    // Output bits are not toggled: tapping opens the force dialog; dismiss it.
+    expect(find.text('Forçar ON (1)'), findsOneWidget);
+    await tester.tapAt(const Offset(2, 2));
+    await tester.pumpAndSettle();
     expect(
       container.read(runtimeProvider).bit(BitAddress.parse('O:0/0')),
       isFalse,

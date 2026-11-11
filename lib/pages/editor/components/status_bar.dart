@@ -13,6 +13,7 @@ class StatusBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(runtimeProvider.select((s) => s.mode));
+    final forces = ref.watch(runtimeProvider.select((s) => s.forces.length));
     final rung = ref.watch(programProvider.select((s) => s.selectedRung));
     final running = mode == RuntimeMode.run;
     return Container(
@@ -36,7 +37,12 @@ class StatusBar extends ConsumerWidget {
             bold: true,
           ),
           _panel('REMOTE', width: 80),
-          _panel('Sem Forçamentos', width: 120),
+          _panel(
+            forces > 0 ? 'Forças: $forces ativas' : 'Sem Forçamentos',
+            width: 120,
+            color: forces > 0 ? const Color(0xFFB05000) : Colors.black,
+            bold: forces > 0,
+          ),
           _panel('Driver: Emulado', width: 130),
         ],
       ),

@@ -4,6 +4,8 @@ import '../../../theme/app_theme.dart';
 
 const gridCellH = 20.0;
 const gridLabelW = 52.0;
+/// Amber of the force indicators (grid cells, I/O panel badge).
+const forceAmber = Color(0xFFFFC000);
 const _gridLine = Color(0xFFB0B0B0);
 
 TextStyle get gridText => LadderStyle.text.copyWith(fontSize: 12);
@@ -16,6 +18,7 @@ class GridCell extends StatelessWidget {
     required this.width,
     this.selected = false,
     this.header = false,
+    this.forced = false,
     this.onTap,
   });
 
@@ -23,6 +26,9 @@ class GridCell extends StatelessWidget {
   final double width;
   final bool selected;
   final bool header;
+
+  /// The bit is forced (I/O forcing): amber background.
+  final bool forced;
   final VoidCallback? onTap;
 
   @override
@@ -36,7 +42,7 @@ class GridCell extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? const Color(0xFF000080)
-                : (header ? const Color(0xFFE8E6E0) : Colors.white),
+                : (forced ? forceAmber : (header ? const Color(0xFFE8E6E0) : Colors.white)),
             border: Border.all(color: _gridLine, width: 0.5),
           ),
           child: Text(

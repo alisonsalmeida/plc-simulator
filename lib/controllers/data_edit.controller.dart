@@ -18,6 +18,11 @@ class DataEditController extends Notifier<void> {
 
   void setBit(BitAddress address, bool value) =>
       ref.read(runtimeServiceProvider).setBit(address, value);
+
+  void setForce(BitAddress address, bool? value) =>
+      ref.read(runtimeServiceProvider).setForce(address, value);
+
+  void clearAllForces() => ref.read(runtimeServiceProvider).clearAllForces();
 }
 
 final dataEditProvider = NotifierProvider<DataEditController, void>(DataEditController.new);

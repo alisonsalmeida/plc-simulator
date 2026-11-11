@@ -51,6 +51,7 @@ class IoPanel extends ConsumerWidget {
             symbol: symbol(BitFile.input, bit),
             kind: kinds[bit],
             on: runtime.input(bit),
+            forced: runtime.forceOf(BitAddress(BitFile.input, 0, bit)) != null,
           ),
       ]),
       const SizedBox(height: 16),
@@ -62,6 +63,7 @@ class IoPanel extends ConsumerWidget {
             address: 'O:0/$bit',
             symbol: symbol(BitFile.output, bit),
             active: runtime.output(bit),
+            forced: runtime.forceOf(BitAddress(BitFile.output, 0, bit)) != null,
             activeColor: AppColors.lampOn,
             icon: Icon(Icons.lightbulb,
                 size: 32,
@@ -119,12 +121,13 @@ class _IoTabs extends StatelessWidget {
 }
 
 class _InputTile extends ConsumerWidget {
-  const _InputTile({required this.bit, required this.symbol, required this.kind, required this.on});
+  const _InputTile({required this.bit, required this.symbol, required this.kind, required this.on, required this.forced});
 
   final int bit;
   final String? symbol;
   final InputKind kind;
   final bool on;
+  final bool forced;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -149,7 +152,7 @@ class _InputTile extends ConsumerWidget {
       child: Text(momentary ? 'botão' : 'chave',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(decoration: TextDecoration.underline)),
     );
-    return _Tile(address: 'I:0/$bit', symbol: symbol, icon: input, active: on, footer: kindButton);
+    return _Tile(address: 'I:0/$bit', symbol: symbol, icon: input, active: on, forced: forced, footer: kindButton);
   }
 }
 
@@ -159,6 +162,7 @@ class _Tile extends StatelessWidget {
     required this.symbol,
     required this.icon,
     this.active = false,
+    this.forced = false,
     this.activeColor = AppColors.energized,
     this.footer,
   });
@@ -167,6 +171,9 @@ class _Tile extends StatelessWidget {
   final String? symbol;
   final Widget icon;
   final bool active;
+
+  /// Shows the amber `[F]` badge: the bit is forced.
+  final bool forced;
   final Color activeColor;
   final Widget? footer;
 
@@ -184,6 +191,9 @@ class _Tile extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         icon,
         Text(address, style: small),
+        if (forced)
+          Text('[F]',
+              style: small?.copyWith(color: const Color(0xFFB05000), fontWeight: FontWeight.bold)),
         Text(symbol ?? '', style: small, maxLines: 1, overflow: TextOverflow.ellipsis),
         ?footer,
       ]),
