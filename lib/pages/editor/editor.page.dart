@@ -10,8 +10,13 @@ import '../../controllers/runtime.controller.dart';
 import '../../models/runtime_state.model.dart';
 import '../../controllers/rung_edit.controller.dart';
 import '../data_table/data_table_window.dart';
+import '../../controllers/find_replace.controller.dart';
+import '../../controllers/project_tree.controller.dart';
 import 'components/app_menu_bar.dart';
+import 'components/find_replace_dialog.dart';
 import 'components/io_panel.dart';
+import 'components/project_tree.dart';
+import 'components/status_bar.dart';
 import 'components/instruction_toolbar.dart';
 import 'components/ladder_view.dart';
 import 'components/pane_splitter.dart';
@@ -27,7 +32,9 @@ class EditorPage extends ConsumerWidget {
       autofocus: true,
       onKeyEvent: (_, event) {
         final stopped = ref.read(runtimeProvider).mode == RuntimeMode.stop;
-        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.delete && stopped) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.delete &&
+            stopped) {
           ref.read(rungEditProvider.notifier).deleteSelectedRung();
           return KeyEventResult.handled;
         }
@@ -48,7 +55,9 @@ class EditorPage extends ConsumerWidget {
             builder: (_, c) {
               if (!dataOpen) return toolbarAndLadder;
               final total = c.maxHeight;
-              final fraction = ref.watch(dataTableProvider.select((s) => s.heightFraction));
+              final fraction = ref.watch(
+                dataTableProvider.select((s) => s.heightFraction),
+              );
               final paneHeight = (total - PaneSplitter.thickness) * fraction;
               return Column(
                 children: [
@@ -56,37 +65,57 @@ class EditorPage extends ConsumerWidget {
                   PaneSplitter(
                     onDrag: (dy) => ref
                         .read(dataTableProvider.notifier)
-                        .setHeightFraction((paneHeight - dy) / (total - PaneSplitter.thickness)),
+                        .setHeightFraction(
+                          (paneHeight - dy) / (total - PaneSplitter.thickness),
+                        ),
                   ),
                   SizedBox(height: paneHeight, child: const DataTableWindow()),
                 ],
               );
             },
           );
+    final treeOpen = ref.watch(projectTreeProvider.select((s) => s.isOpen));
+    final findOpen = ref.watch(findReplaceProvider.select((s) => s.isOpen));
+    final main = treeOpen
+        ? Row(
+            children: [
+              const ProjectTree(),
+              const VerticalDivider(width: 1),
+              Expanded(child: ladder),
+            ],
+          )
+        : ladder;
     return Scaffold(
-      body: Column(
+      body: Stack(
         children: [
-          const AppMenuBar(),
-          const RunToolbar(),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (_, c) => c.maxWidth >= 900
-                  ? Row(
-                      children: [
-                        Expanded(child: ladder),
-                        const VerticalDivider(width: 1),
-                        const SizedBox(width: 340, child: IoPanel()),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        Expanded(child: ladder),
-                        const Divider(height: 1),
-                        const SizedBox(height: 300, child: IoPanel()),
-                      ],
-                    ),
-            ),
+          Column(
+            children: [
+              const AppMenuBar(),
+              const RunToolbar(),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (_, c) => c.maxWidth >= 900
+                      ? Row(
+                          children: [
+                            Expanded(child: main),
+                            const VerticalDivider(width: 1),
+                            const SizedBox(width: 340, child: IoPanel()),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            Expanded(child: main),
+                            const Divider(height: 1),
+                            const SizedBox(height: 300, child: IoPanel()),
+                          ],
+                        ),
+                ),
+              ),
+              const StatusBar(),
+            ],
           ),
+          if (findOpen)
+            const Positioned(top: 90, right: 360, child: FindReplaceDialog()),
         ],
       ),
     );
