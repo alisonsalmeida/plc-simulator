@@ -11,15 +11,19 @@ import 'analog_format.dart';
 
 /// One analog output channel (O:2.n): range selector and a read-only gauge in V / mA.
 class AnalogOutputTile extends ConsumerWidget {
-  const AnalogOutputTile({super.key, required this.channel});
+  const AnalogOutputTile({super.key, required this.channel, this.slot});
 
   final int channel;
+
+  /// Mapped slot; defaults to the program I/O mapping when null.
+  final int? slot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(analogIoProvider.select((s) => s.outputRanges[channel]));
     final raw = ref.watch(runtimeProvider.select((s) => s.analogOutputs[channel]));
-    final address = 'O:$analogOutputSlot.$channel';
+    final s = slot ?? ref.watch(programProvider.select((p) => p.program.ioMapping.analogOutputSlot));
+    final address = 'O:$s.$channel';
     final symbol = ref.watch(programProvider.select((s) => s.program.symbols[address]));
     final physical = AnalogOutput.toPhysical(range, raw);
     return AnalogTileFrame(

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:plc_core/plc_core.dart';
+
+import '../../../controllers/program.controller.dart';
 import '../../../controllers/runtime.controller.dart';
 
-/// Retro industrial thumbwheel switch with 1..4 BCD digits. Digit `n` drives `I:0/4n..4n+3`.
+/// Retro industrial thumbwheel switch with 1..4 BCD digits. Digit `n` drives `I:s/4n..4n+3`,
+/// where `s` is the chassis slot it is connected to.
 class ThumbwheelTile extends ConsumerStatefulWidget {
   const ThumbwheelTile({super.key});
 
@@ -17,10 +21,30 @@ class _ThumbwheelTileState extends ConsumerState<ThumbwheelTile> {
   /// Digit values, index 0 = units.
   final List<int> _digits = [0, 0, 0, 0];
 
-  void _write(int index) {
+  int get _slot => ref.read(programProvider).program.ioMapping.thumbwheelSlot;
+
+  void _write(int index, {int? slot, bool clear = false}) {
     final runtime = ref.read(runtimeProvider.notifier);
+    final s = slot ?? _slot;
     for (var b = 0; b < 4; b++) {
-      runtime.setInput(index * 4 + b, (_digits[index] >> b) & 1 == 1);
+      final address = BitAddress(
+        BitFile.input,
+        ioElement(BitFile.input, s, null)!,
+        index * 4 + b,
+      );
+      runtime.setBit(address, !clear && (_digits[index] >> b) & 1 == 1);
+    }
+  }
+
+  void _setSlot(int slot) {
+    final old = _slot;
+    if (slot == old) return;
+    for (var i = 0; i < _count; i++) {
+      _write(i, slot: old, clear: true);
+    }
+    ref.read(programProvider.notifier).setThumbwheelSlot(slot);
+    for (var i = 0; i < _count; i++) {
+      _write(i, slot: slot);
     }
   }
 
@@ -43,6 +67,12 @@ class _ThumbwheelTileState extends ConsumerState<ThumbwheelTile> {
   @override
   Widget build(BuildContext context) {
     final small = Theme.of(context).textTheme.labelSmall;
+    final program = ref.watch(programProvider.select((s) => s.program));
+    final slot = program.ioMapping.thumbwheelSlot;
+    final slots = [
+      for (var s = 0; s < program.chassis.slots.length; s++)
+        if (program.chassis.moduleAt(s).hasDigitalInputs) s,
+    ];
     var value = 0;
     var bcd = 0;
     for (var i = _count - 1; i >= 0; i--) {
@@ -68,6 +98,17 @@ class _ThumbwheelTileState extends ConsumerState<ThumbwheelTile> {
                 ),
               ),
               DropdownButton<int>(
+                key: const ValueKey('thumbwheel-slot'),
+                value: slots.contains(slot) ? slot : null,
+                style: small?.copyWith(color: Colors.black),
+                items: [
+                  for (final s in slots)
+                    DropdownMenuItem(value: s, child: Text('Slot $s')),
+                ],
+                onChanged: (s) => _setSlot(s ?? slot),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
                 key: const ValueKey('thumbwheel-digits'),
                 value: _count,
                 style: small?.copyWith(color: Colors.black),
@@ -84,7 +125,9 @@ class _ThumbwheelTileState extends ConsumerState<ThumbwheelTile> {
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [for (var i = _count - 1; i >= 0; i--) _dial(i, small)],
+            children: [
+              for (var i = _count - 1; i >= 0; i--) _dial(i, slot, small),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -97,7 +140,7 @@ class _ThumbwheelTileState extends ConsumerState<ThumbwheelTile> {
     );
   }
 
-  Widget _dial(int index, TextStyle? small) => Padding(
+  Widget _dial(int index, int slot, TextStyle? small) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4),
     child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -128,7 +171,7 @@ class _ThumbwheelTileState extends ConsumerState<ThumbwheelTile> {
           ),
         ),
         _arrow('thumbwheel-down-$index', '▼', () => _change(index, -1)),
-        Text('I:0/${index * 4}..${index * 4 + 3}', style: small),
+        Text('I:$slot/${index * 4}..${index * 4 + 3}', style: small),
       ],
     ),
   );

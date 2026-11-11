@@ -42,6 +42,35 @@ class ProgramController extends Notifier<ProgramState> {
   /// Empties [slot].
   void clearChassisSlot(int slot) => setChassis(state.program.chassis.clearSlot(slot));
 
+  /// Maps the main digital inputs (input tiles) to the module in [slot].
+  void setDigitalInputSlot(int slot) =>
+      _mapIo((m) => m.copyWith(digitalInputSlot: slot));
+
+  /// Maps the main digital outputs (lamp tiles) to the module in [slot].
+  void setDigitalOutputSlot(int slot) =>
+      _mapIo((m) => m.copyWith(digitalOutputSlot: slot));
+
+  /// Maps the analog inputs to the module in [slot].
+  void setAnalogInputSlot(int slot) =>
+      _mapIo((m) => m.copyWith(analogInputSlot: slot));
+
+  /// Maps the analog outputs to the module in [slot].
+  void setAnalogOutputSlot(int slot) =>
+      _mapIo((m) => m.copyWith(analogOutputSlot: slot));
+
+  void _mapIo(IoMappingConfig Function(IoMappingConfig) change) =>
+      replaceProgram(
+        state.program.copyWith(ioMapping: change(state.program.ioMapping)),
+      );
+
+  /// Connects the thumbwheel to the digital input module in [slot].
+  void setThumbwheelSlot(int slot) =>
+      _mapIo((m) => m.copyWith(thumbwheelSlot: slot));
+
+  /// Connects the 7-segment display to the digital output module in [slot].
+  void setSevenSegmentSlot(int slot) =>
+      _mapIo((m) => m.copyWith(sevenSegmentSlot: slot));
+
   /// Selects the rung at [index]; null clears the selection.
   void selectRung(int? index) => state = index == null
       ? state.copyWith(clearSelection: true)

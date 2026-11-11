@@ -65,6 +65,12 @@ class ScanEngine {
     _firstScan = true;
   }
 
+  int get _digitalInputElement =>
+      ioElement(BitFile.input, program.ioMapping.digitalInputSlot, null) ?? 0;
+
+  int get _digitalOutputElement =>
+      ioElement(BitFile.output, program.ioMapping.digitalOutputSlot, null) ?? 0;
+
   /// Called on the transition to STOP: physical outputs (digital and analog) go off, the
   /// data table is kept.
   void stop() {
@@ -74,9 +80,10 @@ class ScanEngine {
 
   /// One scan. [elapsed] is the time since the previous scan; it drives the timers.
   ScanTrace scan({Duration elapsed = Duration.zero}) {
-    memory.setWord(BitFile.input, 0, inputImage);
+    memory.setWord(BitFile.input, _digitalInputElement, inputImage);
+    final inSlot = program.ioMapping.analogInputSlot;
     for (var ch = 0; ch < analogInputChannels; ch++) {
-      memory.setWord(BitFile.input, 1 + ch, analogInputImage[ch]);
+      memory.setWord(BitFile.input, ioElement(BitFile.input, inSlot, ch) ?? (1 + ch), analogInputImage[ch]);
     }
     _applyForces(BitFile.input);
     memory.writeBit(firstScanBit, _firstScan);
@@ -87,9 +94,10 @@ class ScanEngine {
       rungs.add(trace);
     }
     _applyForces(BitFile.output);
-    outputImage = memory.word(BitFile.output, 0);
+    outputImage = memory.word(BitFile.output, _digitalOutputElement);
+    final outSlot = program.ioMapping.analogOutputSlot;
     for (var ch = 0; ch < analogOutputChannels; ch++) {
-      analogOutputImage[ch] = memory.word(BitFile.output, 1 + ch);
+      analogOutputImage[ch] = memory.word(BitFile.output, ioElement(BitFile.output, outSlot, ch) ?? (1 + ch));
     }
     _firstScan = false;
     return ScanTrace(rungs);

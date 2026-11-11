@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:plc_core/plc_core.dart';
+
+import '../../../controllers/program.controller.dart';
 import '../../../controllers/runtime.controller.dart';
 
 enum SevenSegmentMode { bcd, direct }
@@ -29,8 +32,8 @@ List<bool> sevenSegmentsFor(int outputs, SevenSegmentMode mode) {
   return digit <= 9 ? _digitSegments[digit] : List.filled(7, false);
 }
 
-/// Glowing 7-segment LED display of 1..4 digits. BCD mode: digit `n` decodes `O:0/4n..4n+3`;
-/// direct mode: one digit with segments a..g on `O:0/0..6`.
+/// Glowing 7-segment LED display of 1..4 digits on the chassis slot `s` it is connected to. BCD
+/// mode: digit `n` decodes `O:s/4n..4n+3`; direct mode: one digit with segments a..g on `O:s/0..6`.
 class SevenSegmentTile extends ConsumerStatefulWidget {
   const SevenSegmentTile({super.key});
 
@@ -44,7 +47,20 @@ class _SevenSegmentTileState extends ConsumerState<SevenSegmentTile> {
 
   @override
   Widget build(BuildContext context) {
-    final outputs = ref.watch(runtimeProvider.select((s) => s.outputs));
+    final program = ref.watch(programProvider.select((s) => s.program));
+    final slot = program.ioMapping.sevenSegmentSlot;
+    final slots = [
+      for (var s = 0; s < program.chassis.slots.length; s++)
+        if (program.chassis.moduleAt(s).hasDigitalOutputs) s,
+    ];
+    final element = ioElement(BitFile.output, slot, null)!;
+    final outputs = ref.watch(
+      runtimeProvider.select(
+        (s) =>
+            s.data[BitFile.output]?[element] ??
+            (slot == program.ioMapping.digitalOutputSlot ? s.outputs : 0),
+      ),
+    );
     final small = Theme.of(
       context,
     ).textTheme.labelSmall?.copyWith(color: Colors.white);
@@ -62,6 +78,20 @@ class _SevenSegmentTileState extends ConsumerState<SevenSegmentTile> {
         children: [
           Row(
             children: [
+              DropdownButton<int>(
+                key: const ValueKey('seven-segment-slot'),
+                value: slots.contains(slot) ? slot : null,
+                dropdownColor: const Color(0xFF222222),
+                style: small,
+                items: [
+                  for (final s in slots)
+                    DropdownMenuItem(value: s, child: Text('Slot $s')),
+                ],
+                onChanged: (s) => ref
+                    .read(programProvider.notifier)
+                    .setSevenSegmentSlot(s ?? slot),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: DropdownButton<SevenSegmentMode>(
                   key: const ValueKey('seven-segment-mode'),
@@ -76,7 +106,7 @@ class _SevenSegmentTileState extends ConsumerState<SevenSegmentTile> {
                     ),
                     DropdownMenuItem(
                       value: SevenSegmentMode.direct,
-                      child: Text('Segmentos Diretos (O:0/0..6)'),
+                      child: Text('Segmentos Diretos'),
                     ),
                   ],
                   onChanged: (m) => setState(() => _mode = m ?? _mode),
@@ -118,7 +148,9 @@ class _SevenSegmentTileState extends ConsumerState<SevenSegmentTile> {
                         ),
                       ),
                       Text(
-                        direct ? 'O:0/0..6' : 'O:0/${i * 4}..${i * 4 + 3}',
+                        direct
+                            ? 'O:$slot/0..6'
+                            : 'O:$slot/${i * 4}..${i * 4 + 3}',
                         style: small,
                       ),
                     ],

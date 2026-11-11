@@ -820,15 +820,94 @@ class Rung {
       );
 }
 
+/// Chassis slots the virtual I/O panel and peripherals are wired to: the main digital
+/// input/output words, the analog modules, the thumbwheel and the 7-segment display.
+class IoMappingConfig {
+  const IoMappingConfig({
+    this.digitalInputSlot = 0,
+    this.digitalOutputSlot = 0,
+    this.analogInputSlot = 1,
+    this.analogOutputSlot = 2,
+    this.thumbwheelSlot = 0,
+    this.sevenSegmentSlot = 0,
+  });
+
+  final int digitalInputSlot;
+  final int digitalOutputSlot;
+  final int analogInputSlot;
+  final int analogOutputSlot;
+  final int thumbwheelSlot;
+  final int sevenSegmentSlot;
+
+  IoMappingConfig copyWith({
+    int? digitalInputSlot,
+    int? digitalOutputSlot,
+    int? analogInputSlot,
+    int? analogOutputSlot,
+    int? thumbwheelSlot,
+    int? sevenSegmentSlot,
+  }) => IoMappingConfig(
+    digitalInputSlot: digitalInputSlot ?? this.digitalInputSlot,
+    digitalOutputSlot: digitalOutputSlot ?? this.digitalOutputSlot,
+    analogInputSlot: analogInputSlot ?? this.analogInputSlot,
+    analogOutputSlot: analogOutputSlot ?? this.analogOutputSlot,
+    thumbwheelSlot: thumbwheelSlot ?? this.thumbwheelSlot,
+    sevenSegmentSlot: sevenSegmentSlot ?? this.sevenSegmentSlot,
+  );
+
+  Map<String, Object?> toJson() => {
+    'digitalInputSlot': digitalInputSlot,
+    'digitalOutputSlot': digitalOutputSlot,
+    'analogInputSlot': analogInputSlot,
+    'analogOutputSlot': analogOutputSlot,
+    'thumbwheelSlot': thumbwheelSlot,
+    'sevenSegmentSlot': sevenSegmentSlot,
+  };
+
+  factory IoMappingConfig.fromJson(Map<String, Object?> json) =>
+      IoMappingConfig(
+        digitalInputSlot: json['digitalInputSlot'] as int? ?? 0,
+        digitalOutputSlot: json['digitalOutputSlot'] as int? ?? 0,
+        analogInputSlot: json['analogInputSlot'] as int? ?? 1,
+        analogOutputSlot: json['analogOutputSlot'] as int? ?? 2,
+        thumbwheelSlot: json['thumbwheelSlot'] as int? ?? 0,
+        sevenSegmentSlot: json['sevenSegmentSlot'] as int? ?? 0,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is IoMappingConfig &&
+      other.digitalInputSlot == digitalInputSlot &&
+      other.digitalOutputSlot == digitalOutputSlot &&
+      other.analogInputSlot == analogInputSlot &&
+      other.analogOutputSlot == analogOutputSlot &&
+      other.thumbwheelSlot == thumbwheelSlot &&
+      other.sevenSegmentSlot == sevenSegmentSlot;
+
+  @override
+  int get hashCode => Object.hash(
+    digitalInputSlot,
+    digitalOutputSlot,
+    analogInputSlot,
+    analogOutputSlot,
+    thumbwheelSlot,
+    sevenSegmentSlot,
+  );
+}
+
 class Program {
   const Program(
     this.rungs, {
     this.symbols = const {},
     this.descriptions = const {},
     this.chassis = ChassisConfig.standard,
+    this.ioMapping = const IoMappingConfig(),
   });
 
   final List<Rung> rungs;
+
+  /// Slots the I/O panel, the analog modules and the peripherals are connected to.
+  final IoMappingConfig ioMapping;
 
   /// The rack and the modules mounted in it; decides which I/O addresses exist.
   final ChassisConfig chassis;
@@ -844,12 +923,14 @@ class Program {
     Map<String, String>? symbols,
     Map<String, String>? descriptions,
     ChassisConfig? chassis,
+    IoMappingConfig? ioMapping,
   }) =>
       Program(
         rungs ?? this.rungs,
         symbols: symbols ?? this.symbols,
         descriptions: descriptions ?? this.descriptions,
         chassis: chassis ?? this.chassis,
+        ioMapping: ioMapping ?? this.ioMapping,
       );
 
   String? symbolFor(BitAddress a) => symbols[a.toString()];

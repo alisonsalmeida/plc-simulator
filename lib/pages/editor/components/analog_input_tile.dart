@@ -10,16 +10,20 @@ import 'analog_format.dart';
 
 /// One analog input channel (I:1.n): range selector, slider in V / mA and the raw count.
 class AnalogInputTile extends ConsumerWidget {
-  const AnalogInputTile({super.key, required this.channel});
+  const AnalogInputTile({super.key, required this.channel, this.slot});
 
   final int channel;
+
+  /// Mapped slot; defaults to the program I/O mapping when null.
+  final int? slot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(analogIoProvider.select((s) => s.inputRanges[channel]));
     final noise = ref.watch(analogIoProvider.select((s) => s.noiseEnabled[channel]));
     final raw = ref.watch(runtimeProvider.select((s) => s.analogInputs[channel]));
-    final address = 'I:$analogInputSlot.$channel';
+    final s = slot ?? ref.watch(programProvider.select((p) => p.program.ioMapping.analogInputSlot));
+    final address = 'I:$s.$channel';
     final symbol = ref.watch(programProvider.select((s) => s.program.symbols[address]));
     final controller = ref.read(analogIoProvider.notifier);
     final physical = AnalogInput.toPhysical(range, raw).clamp(0.0, range.maxPhysical);

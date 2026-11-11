@@ -15,6 +15,7 @@ Map<String, Object?> programToJson(Program program) => {
   'symbols': Map<String, String>.of(program.symbols),
   'descriptions': Map<String, String>.of(program.descriptions),
   'chassis': program.chassis.toJson(),
+  'ioMapping': program.ioMapping.toJson(),
 };
 
 Map<String, Object?> _rungToJson(Rung rung) => {
@@ -131,6 +132,11 @@ Program programFromJson(Map<String, Object?> json) {
       null => ChassisConfig.defaultConfig(),
       final Map<String, Object?> c => ChassisConfig.fromJson(c),
       _ => throw const FormatException('chassis must be an object'),
+    },
+    ioMapping: switch (json['ioMapping'] ?? json['peripherals']) {
+      null => const IoMappingConfig(),
+      final Map<String, Object?> m => IoMappingConfig.fromJson(m),
+      _ => throw const FormatException('ioMapping must be an object'),
     },
   );
 }

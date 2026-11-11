@@ -23,14 +23,13 @@ class IoPanel extends ConsumerWidget {
     final runtime = ref.watch(runtimeProvider);
     final kinds = ref.watch(ioPanelProvider).kinds;
     final title = Theme.of(context).textTheme.titleSmall;
-    String? symbol(BitFile f, int bit) =>
-        program.symbolFor(BitAddress(f, 0, bit));
     final tab = ref.watch(ioPanelTabProvider);
     final tabs = _IoTabs(
       tab: tab,
       onSelect: ref.read(ioPanelTabProvider.notifier).select,
     );
     final chassis = program.chassis;
+    final mapping = program.ioMapping;
     if (tab == IoPanelTab.analog) {
       return ListView(
         padding: const EdgeInsets.all(12),
@@ -38,12 +37,22 @@ class IoPanel extends ConsumerWidget {
           tabs,
           for (var s = 0; s < chassis.slots.length; s++) ...[
             if (chassis.moduleAt(s).hasAnalogInputs) ...[
-              const SizedBox(height: 10),
-              Text(
-                s == analogInputSlot
+              _SectionHeader(
+                title: s == mapping.analogInputSlot
                     ? 'Entradas analógicas (I:$s)'
                     : 'Entradas analógicas Slot $s (I:$s)',
                 style: title,
+                topGap: 10,
+                picker: s == mapping.analogInputSlot
+                    ? _SlotPicker(
+                        pickerKey: const ValueKey('analog-input-slot'),
+                        value: s,
+                        slots: _slots(chassis, (m) => m.hasAnalogInputs),
+                        onChanged: ref
+                            .read(programProvider.notifier)
+                            .setAnalogInputSlot,
+                      )
+                    : null,
               ),
               const SizedBox(height: 8),
               for (
@@ -54,12 +63,22 @@ class IoPanel extends ConsumerWidget {
                 _analogInput(s, ch),
             ],
             if (chassis.moduleAt(s).hasAnalogOutputs) ...[
-              const SizedBox(height: 10),
-              Text(
-                s == analogOutputSlot
+              _SectionHeader(
+                title: s == mapping.analogOutputSlot
                     ? 'Saídas analógicas (O:$s)'
                     : 'Saídas analógicas Slot $s (O:$s)',
                 style: title,
+                topGap: 10,
+                picker: s == mapping.analogOutputSlot
+                    ? _SlotPicker(
+                        pickerKey: const ValueKey('analog-output-slot'),
+                        value: s,
+                        slots: _slots(chassis, (m) => m.hasAnalogOutputs),
+                        onChanged: ref
+                            .read(programProvider.notifier)
+                            .setAnalogOutputSlot,
+                      )
+                    : null,
               ),
               const SizedBox(height: 8),
               for (
@@ -79,27 +98,98 @@ class IoPanel extends ConsumerWidget {
         children: [
           tabs,
           const SizedBox(height: 12),
-          Text('Thumbwheel (I:0)', style: title),
+          Text(
+            'Thumbwheel (I:${program.ioMapping.thumbwheelSlot})',
+            style: title,
+          ),
           const SizedBox(height: 8),
           const ThumbwheelTile(),
           const SizedBox(height: 16),
-          Text('Display 7 segmentos (O:0)', style: title),
+          Text(
+            'Display 7 segmentos (O:${program.ioMapping.sevenSegmentSlot})',
+            style: title,
+          ),
           const SizedBox(height: 8),
           const SevenSegmentTile(),
         ],
       );
     }
+    final controller = ref.read(programProvider.notifier);
+    final inSlot = mapping.digitalInputSlot;
+    final outSlot = mapping.digitalOutputSlot;
+    final inModule = chassis.moduleAt(inSlot);
+    final outModule = chassis.moduleAt(outSlot);
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
         tabs,
+        const SizedBox(height: 12),
+        _SectionHeader(
+          title: 'Entradas (I:$inSlot)',
+          style: title,
+          picker: _SlotPicker(
+            pickerKey: const ValueKey('digital-input-slot'),
+            value: inSlot,
+            slots: _slots(chassis, (m) => m.hasDigitalInputs),
+            onChanged: controller.setDigitalInputSlot,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            if (inModule.hasDigitalInputs)
+              for (var bit = 0; bit < inModule.digitalInputBits; bit++)
+                _InputTile(
+                  slot: inSlot,
+                  bit: bit,
+                  symbol: program.symbolFor(
+                    BitAddress(
+                      BitFile.input,
+                      ioElement(BitFile.input, inSlot, null)!,
+                      bit,
+                    ),
+                  ),
+                  kind: kinds[bit],
+                  on: runtime.input(bit),
+                  forced:
+                      runtime.forceOf(
+                        BitAddress(
+                          BitFile.input,
+                          ioElement(BitFile.input, inSlot, null)!,
+                          bit,
+                        ),
+                      ) !=
+                      null,
+                ),
+          ],
+        ),
+        _SectionHeader(
+          title: 'Saídas (O:$outSlot)',
+          style: title,
+          topGap: 16,
+          picker: _SlotPicker(
+            pickerKey: const ValueKey('digital-output-slot'),
+            value: outSlot,
+            slots: _slots(chassis, (m) => m.hasDigitalOutputs),
+            onChanged: controller.setDigitalOutputSlot,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            if (outModule.hasDigitalOutputs)
+              for (var bit = 0; bit < outModule.digitalOutputBits; bit++)
+                _outputTile(outSlot, bit, program, runtime),
+          ],
+        ),
         for (var s = 0; s < chassis.slots.length; s++) ...[
-          if (chassis.moduleAt(s).hasDigitalInputs) ...[
+          if (s != inSlot && chassis.moduleAt(s).hasDigitalInputs) ...[
             const SizedBox(height: 12),
-            Text(
-              s == 0 ? 'Entradas (I:0)' : 'Entradas Slot $s (I:$s)',
-              style: title,
-            ),
+            Text('Entradas Slot $s (I:$s)', style: title),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -110,32 +200,18 @@ class IoPanel extends ConsumerWidget {
                   bit < chassis.moduleAt(s).digitalInputBits;
                   bit++
                 )
-                  if (s == 0)
-                    _InputTile(
-                      bit: bit,
-                      symbol: symbol(BitFile.input, bit),
-                      kind: kinds[bit],
-                      on: runtime.input(bit),
-                      forced:
-                          runtime.forceOf(BitAddress(BitFile.input, 0, bit)) !=
-                          null,
-                    )
-                  else
-                    _SlotInputTile(
-                      slot: s,
-                      bit: bit,
-                      program: program,
-                      runtime: runtime,
-                    ),
+                  _SlotInputTile(
+                    slot: s,
+                    bit: bit,
+                    program: program,
+                    runtime: runtime,
+                  ),
               ],
             ),
           ],
-          if (chassis.moduleAt(s).hasDigitalOutputs) ...[
+          if (s != outSlot && chassis.moduleAt(s).hasDigitalOutputs) ...[
             const SizedBox(height: 16),
-            Text(
-              s == 0 ? 'Saídas (O:0)' : 'Saídas Slot $s (O:$s)',
-              style: title,
-            ),
+            Text('Saídas Slot $s (O:$s)', style: title),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -155,26 +231,22 @@ class IoPanel extends ConsumerWidget {
     );
   }
 
-  Widget _analogInput(int slot, int ch) {
-    final element = ioElement(BitFile.input, slot, ch);
-    if (element != null && element >= 1 && element <= 4) {
-      return AnalogInputTile(channel: element - 1);
-    }
-    return _RawAnalogTile(file: BitFile.input, slot: slot, channel: ch);
-  }
+  static List<int> _slots(
+    ChassisConfig chassis,
+    bool Function(ModuleDefinition) has,
+  ) => [
+    for (var s = 0; s < chassis.slots.length; s++)
+      if (has(chassis.moduleAt(s))) s,
+  ];
 
-  Widget _analogOutput(int slot, int ch) {
-    final element = ioElement(BitFile.output, slot, ch);
-    if (element != null && element >= 1 && element <= 2) {
-      return AnalogOutputTile(channel: element - 1);
-    }
-    return _RawAnalogTile(file: BitFile.output, slot: slot, channel: ch);
-  }
+  Widget _analogInput(int slot, int ch) => AnalogInputTile(slot: slot, channel: ch);
+
+  Widget _analogOutput(int slot, int ch) => AnalogOutputTile(slot: slot, channel: ch);
 
   Widget _outputTile(int slot, int bit, Program program, RuntimeState runtime) {
     final element = ioElement(BitFile.output, slot, null)!;
     final address = BitAddress(BitFile.output, element, bit);
-    final on = slot == 0
+    final on = slot == program.ioMapping.digitalOutputSlot
         ? runtime.output(bit)
         : runtime.mode != RuntimeMode.stop &&
               ((runtime.data[BitFile.output]?[element] ?? 0) >> bit) & 1 == 1;
@@ -236,55 +308,6 @@ class _SlotInputTile extends ConsumerWidget {
   }
 }
 
-/// Generic analog channel outside the legacy I:1.0..3 / O:2.0..1: raw 0..32767 slider (input)
-/// or read-out (output) over the data table word.
-class _RawAnalogTile extends ConsumerWidget {
-  const _RawAnalogTile({
-    required this.file,
-    required this.slot,
-    required this.channel,
-  });
-
-  final BitFile file;
-  final int slot;
-  final int channel;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final element = ioElement(file, slot, channel);
-    if (element == null) return const SizedBox.shrink();
-    final isInput = file == BitFile.input;
-    final raw = ref.watch(
-      runtimeProvider.select((s) => s.data[file]?[element] ?? 0),
-    );
-    final label = '${isInput ? 'I' : 'O'}:$slot.$channel';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 56,
-            child: Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ),
-          Expanded(
-            child: isInput
-                ? Slider(
-                    key: ValueKey('raw-analog-$label'),
-                    value: raw.clamp(0, 32767).toDouble(),
-                    max: 32767,
-                    onChanged: (v) => ref
-                        .read(runtimeProvider.notifier)
-                        .writeWord(WordAddress(file, element), v.round()),
-                  )
-                : LinearProgressIndicator(value: raw.clamp(0, 32767) / 32767),
-          ),
-          SizedBox(width: 48, child: Text('$raw', textAlign: TextAlign.end)),
-        ],
-      ),
-    );
-  }
-}
-
 /// Desktop-style tab strip switching between digital and analog I/O.
 class _IoTabs extends StatelessWidget {
   const _IoTabs({required this.tab, required this.onSelect});
@@ -335,8 +358,63 @@ class _IoTabs extends StatelessWidget {
   }
 }
 
+/// Section title with an optional slot selector on the right.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.style,
+    this.picker,
+    this.topGap = 0,
+  });
+
+  final String title;
+  final TextStyle? style;
+  final Widget? picker;
+  final double topGap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(top: topGap),
+    child: Row(
+      children: [
+        Expanded(child: Text(title, style: style)),
+        ?picker,
+      ],
+    ),
+  );
+}
+
+/// Drop-down listing the chassis [slots] a function can be mapped to.
+class _SlotPicker extends StatelessWidget {
+  const _SlotPicker({
+    required this.pickerKey,
+    required this.value,
+    required this.slots,
+    required this.onChanged,
+  });
+
+  final Key pickerKey;
+  final int value;
+  final List<int> slots;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DropdownButton<int>(
+    key: pickerKey,
+    value: slots.contains(value) ? value : null,
+    style: Theme.of(
+      context,
+    ).textTheme.labelSmall?.copyWith(color: Colors.black),
+    items: [
+      for (final s in slots) DropdownMenuItem(value: s, child: Text('Slot $s')),
+    ],
+    onChanged: (s) => onChanged(s ?? value),
+  );
+}
+
 class _InputTile extends ConsumerWidget {
   const _InputTile({
+    required this.slot,
     required this.bit,
     required this.symbol,
     required this.kind,
@@ -344,6 +422,7 @@ class _InputTile extends ConsumerWidget {
     required this.forced,
   });
 
+  final int slot;
   final int bit;
   final String? symbol;
   final InputKind kind;
@@ -380,7 +459,7 @@ class _InputTile extends ConsumerWidget {
       ),
     );
     return _Tile(
-      address: 'I:0/$bit',
+      address: 'I:$slot/$bit',
       symbol: symbol,
       icon: input,
       active: on,

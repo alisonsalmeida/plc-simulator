@@ -118,7 +118,11 @@ class SimulationRuntimeService implements IRuntimeService {
 
   void _applyAnalogInput(int channel, int value) {
     _engine!.analogInputImage[channel] = value;
-    _engine!.memory.setWord(BitFile.input, 1 + channel, value);
+    _engine!.memory.setWord(
+      BitFile.input,
+      ioElement(BitFile.input, _engine!.program.ioMapping.analogInputSlot, channel) ?? (1 + channel),
+      value,
+    );
   }
 
   @override
@@ -177,8 +181,13 @@ class SimulationRuntimeService implements IRuntimeService {
     _states.close();
   }
 
-  /// I:0 is overwritten by the input image every scan, so writes go through [setInput].
-  bool _isPhysicalInput(BitAddress a) => a.file == BitFile.input && a.word == 0;
+  /// The mapped digital input word is overwritten by the input image every scan, so writes go
+  /// through [setInput].
+  bool _isPhysicalInput(BitAddress a) {
+    final slot = _engine!.program.ioMapping.digitalInputSlot;
+    return a.file == BitFile.input &&
+        a.word == (ioElement(BitFile.input, slot, null) ?? 0);
+  }
 
   /// I:1.x words are overwritten by the analog input image every scan, so writes go
   /// through [setAnalogInput].

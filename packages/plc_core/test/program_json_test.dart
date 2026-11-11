@@ -67,6 +67,25 @@ Program everyMnemonic() => Program(
 );
 
 void main() {
+  test('round-trips the I/O mapping and defaults it when absent', () {
+    const program = Program(
+      [],
+      ioMapping: IoMappingConfig(
+        digitalInputSlot: 1,
+        digitalOutputSlot: 2,
+        analogInputSlot: 3,
+        analogOutputSlot: 4,
+        thumbwheelSlot: 5,
+        sevenSegmentSlot: 6,
+      ),
+    );
+    final json =
+        jsonDecode(jsonEncode(programToJson(program))) as Map<String, Object?>;
+    expect(programFromJson(json).ioMapping, program.ioMapping);
+    json.remove('ioMapping');
+    expect(programFromJson(json).ioMapping, const IoMappingConfig());
+  });
+
   test('round-trips every mnemonic, branches, symbols and descriptions', () {
     final json = programToJson(everyMnemonic());
     final text = jsonEncode(json);

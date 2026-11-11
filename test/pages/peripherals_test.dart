@@ -130,11 +130,88 @@ void main() {
     await openPeripherals(tester);
     await tester.tap(find.byKey(const ValueKey('seven-segment-mode')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Segmentos Diretos (O:0/0..6)').last);
+    await tester.tap(find.text('Segmentos Diretos').last);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('seven-segment-digit-1')), findsNothing);
     await forceOutputs(tester, c, 0x41); // a + g
     expect(segments(tester), [true, false, false, false, false, false, true]);
+  });
+
+  testWidgets('peripherals can be wired to installed chassis slots', (
+    tester,
+  ) async {
+    final c = await pumpPanel(tester);
+    final program = c.read(programProvider.notifier);
+    program.setChassisSlot(1, ModuleCatalog.ib16);
+    program.setChassisSlot(2, ModuleCatalog.ob16);
+    await tester.pump();
+    await openPeripherals(tester);
+
+    await tester.tap(find.byKey(const ValueKey('thumbwheel-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slot 1').last);
+    await tester.pumpAndSettle();
+    expect(c.read(programProvider).program.ioMapping.thumbwheelSlot, 1);
+    expect(find.text('Thumbwheel (I:1)'), findsOneWidget);
+    expect(find.text('I:1/12..15'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('thumbwheel-up-0')));
+    await tester.tap(find.byKey(const ValueKey('thumbwheel-up-0')));
+    await tester.pump();
+    final runtime = c.read(runtimeProvider);
+    expect(runtime.data[BitFile.input]?[ioElement(BitFile.input, 1, null)!], 2);
+    expect(runtime.inputs & 0xFFFF, 0);
+
+    await tester.tap(find.byKey(const ValueKey('seven-segment-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slot 2').last);
+    await tester.pumpAndSettle();
+    expect(c.read(programProvider).program.ioMapping.sevenSegmentSlot, 2);
+    expect(find.text('O:2/0..3'), findsOneWidget);
+    c
+        .read(runtimeProvider.notifier)
+        .setBit(
+          BitAddress(BitFile.output, ioElement(BitFile.output, 2, null)!, 1),
+          true,
+        ); // BCD 2
+    await tester.pump();
+    await tester.pump();
+    expect(segments(tester), [true, true, false, true, true, false, true]); // 2
+  });
+
+  testWidgets('digital input and output slots can be remapped', (tester) async {
+    final c = await pumpPanel(tester);
+    final program = c.read(programProvider.notifier);
+    program.setChassisSlot(1, ModuleCatalog.ib16);
+    program.setChassisSlot(2, ModuleCatalog.ob16);
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('digital-input-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slot 1').last);
+    await tester.pumpAndSettle();
+    expect(c.read(programProvider).program.ioMapping.digitalInputSlot, 1);
+    expect(find.text('Entradas (I:1)'), findsOneWidget);
+    expect(find.text('I:1/0'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('digital-output-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slot 2').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Saídas (O:2)'), findsOneWidget);
+    expect(find.text('O:2/0'), findsOneWidget);
+
+    c.read(runtimeProvider.notifier).setInput(3, true);
+    c.read(runtimeProvider.notifier).step();
+    await tester.pump();
+    final data = c.read(runtimeProvider).data;
+    expect((data[BitFile.input]?[ioElement(BitFile.input, 1, null)!] ?? 0) & 8, 8);
+    expect(data[BitFile.input]?[0] ?? 0, 0);
+
+    final service = c.read(runtimeServiceProvider);
+    service.setForce(BitAddress(BitFile.output, ioElement(BitFile.output, 2, null)!, 5), true);
+    c.read(runtimeProvider.notifier).step();
+    await tester.pump();
+    expect(c.read(runtimeProvider).output(5), true);
+    expect(c.read(runtimeProvider).output(4), false);
   });
 
   testWidgets('7-segment BCD example loads and converts the thumbwheel digit', (

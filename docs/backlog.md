@@ -6,7 +6,8 @@
 - [x] Fix editor exceptions: Scrollbar unattached ScrollController in LadderView
 - [x] Modular I/O and chassis hardware configuration (RSLogix-style IO Configuration tab/window: customizable chassis/rack with slots for CPU, digital input, digital output, analog input/output, and communication modules with visual assembly view of the physical PLC rack)
 - [x] Set 2: Sequencer instructions: SQO (Sequencer Output), SQC (Sequencer Compare), SQL (Sequencer Load)
-- [ ] Configurable peripheral mapping to chassis modules (allow assigning thumbwheel and 7-segment display to dedicated digital I/O slots/words to avoid competing with default I:0/O:0)
+- [x] Configurable peripheral mapping to chassis modules (allow assigning thumbwheel and 7-segment display to dedicated digital I/O slots/words to avoid competing with default I:0/O:0)
+- [x] Free hardware I/O mapping: allow mapping the 16 digital inputs bank to slot N, digital outputs bank to slot Y, analog inputs/outputs to dedicated slots, and persist mapping in project save
 - [ ] Set 3: File/Array batch operations: COP (Copy File), FLL (Fill File), AVE (Average File), SRT (Sort File)
 - [ ] Set 4: Program flow and subroutines: JSR (Jump Subroutine), SBR (Subroutine Header), RET (Return), JMP, LBL, MCR (Master Control Reset), TND (Temporary End)
 - [ ] Process simulation window: Bottle Filling Line (animated 2D simulation with conveyor, fill nozzle, capper, reject piston, BSL/BSR shift registers and R6 control file)

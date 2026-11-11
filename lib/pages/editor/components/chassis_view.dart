@@ -359,12 +359,18 @@ class _SlotCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final runtime = ref.watch(runtimeProvider);
+    final mapping = ref.watch(
+      programProvider.select((s) => s.program.ioMapping),
+    );
     final empty = module.category == ModuleCategory.empty;
     final running = runtime.mode != RuntimeMode.stop;
     int word(BitFile f) {
       final element = ioElement(f, slot, null);
       if (element == null) return 0;
-      if (slot == 0) {
+      if (slot ==
+          (f == BitFile.input
+              ? mapping.digitalInputSlot
+              : mapping.digitalOutputSlot)) {
         return f == BitFile.input ? runtime.inputs : runtime.outputs;
       }
       if (f == BitFile.output && !running) return 0;
