@@ -15,6 +15,7 @@
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
+- [x] Tag and release v1.0.0 (RSLogix 500-style editor, SLC 500 instruction sets 1-4, chassis config, peripherals, and curriculum examples)
 - [x] Pluggable simulation peripherals: 7-segment display (BCD and direct), thumbwheel switch in dedicated Periféricos tab with up to 4 digits
 - [x] BCD conversion instructions: TOD (To BCD) and FRD (From BCD)
 - [x] I/O bit forcing (Forces ON/OFF) with indicators in data table and status bar

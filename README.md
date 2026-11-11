@@ -1,7 +1,6 @@
 # PLC Simulator
 
-Ladder-logic PLC simulator for teaching (SLC 500 style mnemonics), built for the CLP II course
-at Centro de Ensino Literatus.
+Ladder-logic PLC simulator for teaching (SLC 500 style mnemonics)
 
 - `packages/plc_core/` — pure Dart engine: bit addresses, data table, scan cycle.
 - `lib/` — Flutter app (web/Linux): ladder view with live power flow, I/O panel, RUN/STEP/STOP.
