@@ -99,7 +99,7 @@ void main() {
       ],
       'Exibir': [
         'Ladder',
-        'Supervisório',
+        'Configuração de Chassi e E/S',
         'Tabela de Dados (Data Files)',
         'Árvore do Projeto',
       ],
@@ -210,9 +210,9 @@ void main() {
         find.byIcon(Icons.check),
         findsNWidgets(2),
       ); // Ladder + project tree
-      await tester.tap(find.text('Supervisório'));
+      await tester.tap(find.text('Configuração de Chassi e E/S'));
       await tester.pumpAndSettle();
-      expect(container.read(mainViewProvider), MainView.hmi);
+      expect(container.read(mainViewProvider), MainView.chassis);
 
       await choose(tester, 'Exibir', 'Tabela de Dados (Data Files)');
       expect(container.read(dataTableProvider).open, isTrue);
@@ -220,7 +220,7 @@ void main() {
       expect(
         find.byIcon(Icons.check),
         findsNWidgets(3),
-      ); // Supervisório + data table + project tree
+      ); // Chassi + data table + project tree
       await tester.tap(find.text('Tabela de Dados (Data Files)'));
       await tester.pumpAndSettle();
       expect(container.read(dataTableProvider).open, isFalse);

@@ -54,12 +54,10 @@ void main() {
     },
   );
 
-  testWidgets('program and supervisory nodes switch the main view', (
+  testWidgets('program nodes switch the main view', (
     tester,
   ) async {
     await pump(tester);
-    await tester.tap(find.text('IHM - Telas'));
-    expect(container.read(mainViewProvider), MainView.hmi);
     await tester.tap(find.text('LAD 2 - MAIN'));
     expect(container.read(mainViewProvider), MainView.ladder);
   });

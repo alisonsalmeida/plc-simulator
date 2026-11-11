@@ -70,7 +70,7 @@ class RunToolbar extends ConsumerWidget {
           _icon(Icons.stop, 'STOP', mode == RuntimeMode.stop ? null : runtime.stop),
           _separator(),
           _tab('Ladder', view == MainView.ladder, () => ref.read(mainViewProvider.notifier).select(MainView.ladder)),
-          _tab('Supervisório', view == MainView.hmi, () => ref.read(mainViewProvider.notifier).select(MainView.hmi)),
+          // _tab('Supervisório', view == MainView.hmi, () => ref.read(mainViewProvider.notifier).select(MainView.hmi)),
           _separator(),
           _icon(Icons.table_chart_outlined, 'Data Files', () {
             final table = ref.read(dataTableProvider.notifier);

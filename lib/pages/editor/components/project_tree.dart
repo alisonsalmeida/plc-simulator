@@ -164,19 +164,19 @@ class ProjectTree extends ConsumerWidget {
                             _Leaf(label, 2, onTap: () => showFile(file)),
                         ],
                       ),
-                      _Folder(
-                        label: 'Supervisório',
-                        depth: 1,
-                        children: [
-                          _Leaf(
-                            'IHM - Telas',
-                            2,
-                            onTap: () => ref
-                                .read(mainViewProvider.notifier)
-                                .select(MainView.hmi),
-                          ),
-                        ],
-                      ),
+                      // _Folder(
+                      //   label: 'Supervisório',
+                      //   depth: 1,
+                      //   children: [
+                      //     _Leaf(
+                      //       'IHM - Telas',
+                      //       2,
+                      //       onTap: () => ref
+                      //           .read(mainViewProvider.notifier)
+                      //           .select(MainView.hmi),
+                      //     ),
+                      //   ],
+                      // ),
                     ],
                   ),
                 ],

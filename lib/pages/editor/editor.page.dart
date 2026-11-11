@@ -163,7 +163,7 @@ class _ViewTabs extends ConsumerWidget {
     return Row(
       children: [
         tab(MainView.ladder, 'LAD 2 - MAIN'),
-        tab(MainView.hmi, 'IHM - Supervisório'),
+        // tab(MainView.hmi, 'IHM - Supervisório'),
         tab(MainView.chassis, 'Chassi - Configuração de E/S'),
       ],
     );

@@ -169,14 +169,14 @@ class AppMenuBar extends ConsumerWidget {
                         .select(MainView.ladder),
                     child: const Text('Ladder'),
                   ),
-                  MenuItemButton(
-                    style: compact,
-                    leadingIcon: _check(view == MainView.hmi),
-                    onPressed: () => ref
-                        .read(mainViewProvider.notifier)
-                        .select(MainView.hmi),
-                    child: const Text('Supervisório'),
-                  ),
+                  // MenuItemButton(
+                  //   style: compact,
+                  //  leadingIcon: _check(view == MainView.hmi),
+                  //  onPressed: () => ref
+                  //      .read(mainViewProvider.notifier)
+                  //      .select(MainView.hmi),
+                  //  child: const Text('Supervisório'),
+                  // ),
                   MenuItemButton(
                     style: compact,
                     leadingIcon: _check(view == MainView.chassis),
