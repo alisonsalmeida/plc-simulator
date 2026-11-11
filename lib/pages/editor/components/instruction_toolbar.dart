@@ -20,8 +20,8 @@ class InstructionToolbar extends ConsumerStatefulWidget {
 }
 
 class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
-  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO'];
-  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO'};
+  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer'];
+  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer'};
   static const _tools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
     'XIC': 'XIC – Contato NA',
@@ -62,6 +62,13 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'FFU': 'FFU – Descarregar fila FIFO',
     'LFL': 'LFL – Carregar pilha LIFO',
     'LFU': 'LFU – Descarregar pilha LIFO',
+  };
+
+  static const _sequencerTools = {
+    LadderAssets.branch: 'BRANCH – Ramo paralelo',
+    'SQO': 'SQO – Saída de sequenciador',
+    'SQC': 'SQC – Comparação de sequenciador',
+    'SQL': 'SQL – Carga de sequenciador',
   };
 
   static const _compareTools = {
@@ -125,6 +132,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
               'Compute/Math' => _mathTools,
               'Move/Logical' => _moveTools,
               'Shift/FIFO' => _shiftTools,
+              'Sequencer' => _sequencerTools,
               _ => _tools,
             }).entries)
               Tooltip(

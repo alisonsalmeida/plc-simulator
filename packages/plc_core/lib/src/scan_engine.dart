@@ -132,6 +132,7 @@ class ScanEngine {
         BitShiftInstruction() => _bitShift(e, power),
         StackLoadInstruction() => _stackLoad(e, power),
         StackUnloadInstruction() => _stackUnload(e, power),
+        SequencerInstruction() => _sequencer(e, power),
         WordInstruction() => _move(e, power),
         CompareInstruction() => power && e.holds(_value),
         Lim() => power && e.holds(_value),
@@ -520,6 +521,38 @@ class ScanEngine {
       memory.setPos(c, pos - 1);
       memory.writeBit(c.bitAt(ControlBit.dn), false);
       if (pos - 1 == 0) memory.writeBit(c.bitAt(ControlBit.em), true);
+    }
+    return power;
+  }
+
+  /// SQO / SQC / SQL on the rising edge of the rung (EN holds the previous state): advances
+  /// POS (wrapping from LEN to 1), sets DN at the last step, then runs the step.
+  bool _sequencer(SequencerInstruction s, bool power) {
+    final c = s.control;
+    final en = c.bitAt(ControlBit.en);
+    memory.setLen(c, s.length);
+    if (!power) {
+      memory.writeBit(en, false);
+      return power;
+    }
+    if (memory.readBit(en)) return power;
+    memory.writeBit(en, true);
+    var pos = memory.pos(c) + 1;
+    if (pos > s.length) pos = 1;
+    memory.setPos(c, pos);
+    memory.writeBit(c.bitAt(ControlBit.dn), pos == s.length);
+    switch (s) {
+      case Sqo(:final mask, :final dest):
+        final fileVal = memory.readWord(s.word(pos)) & 0xFFFF;
+        final maskVal = _value(mask) & 0xFFFF;
+        final destVal = memory.readWord(dest) & 0xFFFF;
+        memory.writeWord(dest, toInt16((fileVal & maskVal) | (destVal & ~maskVal)));
+      case Sqc(:final mask, :final source):
+        final maskVal = _value(mask) & 0xFFFF;
+        final match = (memory.readWord(s.word(pos)) & maskVal) == (_value(source) & maskVal);
+        memory.writeBit(c.bitAt(ControlBit.fd), match);
+      case Sql(:final source):
+        memory.writeWord(s.word(pos), _value(source));
     }
     return power;
   }

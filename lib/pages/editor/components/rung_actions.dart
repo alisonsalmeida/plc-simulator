@@ -84,7 +84,7 @@ class RungActions {
       },
       preset: switch (ins) {
         TimerInstruction(:final preset) || CounterInstruction(:final preset) => preset,
-        ShiftInstruction(:final length) => length,
+        ShiftInstruction(:final length) || SequencerInstruction(:final length) => length,
         _ => 0,
       },
       source: switch (ins) {
@@ -96,10 +96,12 @@ class RungActions {
         BitShiftInstruction(:final bit) => bit.toString(),
         StackLoadInstruction(:final source) => source.format(),
         StackUnloadInstruction(:final dest) => dest.format(),
+        Sqo(:final dest) => dest.format(),
+        Sqc(:final source) || Sql(:final source) => source.format(),
         _ => '',
       },
       mask: switch (ins) {
-        Mvm(:final mask) => mask.format(hex: true),
+        Mvm(:final mask) || Sqo(:final mask) || Sqc(:final mask) => mask.format(hex: true),
         Lim(:final high) => high.format(),
         ShiftInstruction(:final control) => control.toString(),
         BinaryMathInstruction(:final sourceB) || BinaryLogicInstruction(:final sourceB) => sourceB.format(),
@@ -108,6 +110,7 @@ class RungActions {
       },
       offset: switch (ins) {
         Scl(:final offset) => offset.format(),
+        SequencerInstruction(:final control) => control.toString(),
         _ => '',
       },
       canDelete: true,

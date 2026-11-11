@@ -46,6 +46,9 @@ sealed class Instruction extends RungElement {
   /// [mask] the `R6:n` control element, [preset] the number of bits); FFL, LFL ([address] is
   /// the stack's first word, [source] the value loaded); FFU, LFU ([source] is the
   /// destination word).
+  /// SQO ([address] is the file's first word, [mask] the mask, [source] the destination word,
+  /// [offset] the `R6:n` control element, [preset] the length); SQC ([source] is the
+  /// compared word or constant); SQL ([source] is the value loaded).
   /// The extra arguments are ignored where they
   /// do not apply.
   ///
@@ -105,6 +108,9 @@ sealed class Instruction extends RungElement {
         'FFU' => Ffu(address, source, mask, preset),
         'LFL' => Lfl(address, source, mask, preset),
         'LFU' => Lfu(address, source, mask, preset),
+        'SQO' => Sqo(file: address, mask: mask, dest: source, control: offset, length: preset),
+        'SQC' => Sqc(file: address, mask: mask, source: source, control: offset, length: preset),
+        'SQL' => Sql(file: address, source: source, control: offset, length: preset),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -700,6 +706,95 @@ final class Lfu extends StackUnloadInstruction {
   Lfu(super.array, super.dest, super.control, super.length);
   @override
   String get mnemonic => 'LFU';
+}
+
+/// Sequencer instructions (SQO, SQC, SQL): they step through an array of words (`B3:n`,
+/// `N7:n`, [file]) with an `R6:n` [control] element. Step 0 is the word at [file]; steps
+/// 1..[length] follow it. They run on the false-to-true transition of the rung (EN stores the
+/// previous state) and are outputs. Power passes through unchanged.
+sealed class SequencerInstruction extends Instruction {
+  SequencerInstruction(String file, String control, this.length)
+      : file = WordAddress.parse(file),
+        control = ElementAddress.parse(control, only: BitFile.control) {
+    if (this.file.field != WordField.word ||
+        (this.file.file != BitFile.bit && this.file.file != BitFile.integer)) {
+      throw FormatException('File must be a B3 or N7 word', file);
+    }
+    RangeError.checkValueInInterval(length, 1, maxLength, 'length');
+    if (this.file.element + length >= this.file.file.elements) {
+      throw FormatException('File out of range', file);
+    }
+  }
+
+  /// Largest length of a sequencer.
+  static const maxLength = 128;
+
+  /// Word of step 0 (start of the array).
+  final WordAddress file;
+  final ElementAddress control;
+
+  /// Number of steps.
+  final int length;
+
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => file.toString();
+
+  /// The word of [step].
+  WordAddress word(int step) => WordAddress(file.file, file.element + step);
+}
+
+/// Sequencer output: on each step, the masked word of the file goes to [dest].
+final class Sqo extends SequencerInstruction {
+  Sqo({
+    required String file,
+    required String mask,
+    required String dest,
+    required String control,
+    required int length,
+  })  : mask = Operand.parse(mask, mask: true),
+        dest = WordAddress.parse(dest),
+        super(file, control, length);
+
+  final Operand mask;
+  final WordAddress dest;
+  @override
+  String get mnemonic => 'SQO';
+}
+
+/// Sequencer compare: on each step, the masked word of the file is compared with the masked
+/// [source]; FD is set when they are equal.
+final class Sqc extends SequencerInstruction {
+  Sqc({
+    required String file,
+    required String mask,
+    required String source,
+    required String control,
+    required int length,
+  })  : mask = Operand.parse(mask, mask: true),
+        source = Operand.parse(source),
+        super(file, control, length);
+
+  final Operand mask;
+  final Operand source;
+  @override
+  String get mnemonic => 'SQC';
+}
+
+/// Sequencer load: on each step, [source] is stored in the word of the file.
+final class Sql extends SequencerInstruction {
+  Sql({
+    required String file,
+    required String source,
+    required String control,
+    required int length,
+  })  : source = Operand.parse(source),
+        super(file, control, length);
+
+  final Operand source;
+  @override
+  String get mnemonic => 'SQL';
 }
 
 /// Parallel branch: power out is the OR of every path.

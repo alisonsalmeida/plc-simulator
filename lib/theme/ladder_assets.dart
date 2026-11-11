@@ -56,6 +56,9 @@ abstract final class LadderAssets {
     'FFU': 'assets/ladder/ffu.svg',
     'LFL': 'assets/ladder/lfl.svg',
     'LFU': 'assets/ladder/lfu.svg',
+    'SQO': 'assets/ladder/sqo.svg',
+    'SQC': 'assets/ladder/sqc.svg',
+    'SQL': 'assets/ladder/sql.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

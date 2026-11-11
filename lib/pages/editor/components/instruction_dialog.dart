@@ -132,10 +132,13 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   bool get _isWord => const {'MOV', 'MVM', 'CLR'}.contains(widget.mnemonic) || _isMath;
   bool get _isLimit => widget.mnemonic == 'LIM';
   bool get _isCompare => const {'EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ'}.contains(widget.mnemonic);
-  bool get _hasSource => _isShift || const {'MOV', 'MVM'}.contains(widget.mnemonic) || _isCompare || _isLimit || _isMath;
-  bool get _hasMask => _isShift || widget.mnemonic == 'MVM' || _isLimit || _isBinaryMath || widget.mnemonic == 'SCL';
-  bool get _hasOffset => widget.mnemonic == 'SCL';
+  bool get _hasSource => _isArray || const {'MOV', 'MVM'}.contains(widget.mnemonic) || _isCompare || _isLimit || _isMath;
+  bool get _hasMask => _isShift || const {'SQO', 'SQC'}.contains(widget.mnemonic) || widget.mnemonic == 'MVM' || _isLimit || _isBinaryMath || widget.mnemonic == 'SCL';
+  bool get _hasOffset => _isSequencer || widget.mnemonic == 'SCL';
   bool get _isShift => const {'BSL', 'BSR', 'FFL', 'FFU', 'LFL', 'LFU'}.contains(widget.mnemonic);
+  bool get _isSequencer => const {'SQO', 'SQC', 'SQL'}.contains(widget.mnemonic);
+  // Array instructions are validated as a whole by Instruction.create.
+  bool get _isArray => _isShift || _isSequencer;
   bool get _isCounter => const {'CTU', 'CTD'}.contains(widget.mnemonic);
 
   String get _hint => switch (widget.mnemonic) {
@@ -144,7 +147,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         'RES' => 'T4:0 ou C5:0',
         'MOV' || 'MVM' || 'CLR' || 'ADD' || 'SUB' || 'MUL' || 'DIV' || 'NEG' || 'SQR' || 'SCL' || 'AND' || 'OR' || 'XOR' || 'NOT' || 'MOD' || 'XPY' || 'SWP' || 'TOD' || 'FRD' || 'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'N7:0',
         'LIM' => 'N7:0 ou 50',
-        'BSL' || 'BSR' || 'FFL' || 'FFU' || 'LFL' || 'LFU' => 'B3:0',
+        'BSL' || 'BSR' || 'FFL' || 'FFU' || 'LFL' || 'LFU' || 'SQO' || 'SQC' || 'SQL' => 'B3:0',
         'ONS' => 'B3:0/0',
         _ => 'I:0/0',
       };
@@ -164,18 +167,21 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   void _submit() {
     if (_chassisError != null) return;
     final preset = int.tryParse(_preset.text.trim());
-    final presetOk = _isShift
+    final presetOk = _isArray
         ? (preset != null && preset >= 1 && preset <= 128)
         : !(_isTimer || _isCounter) || (preset != null && preset >= 0 && preset <= maxPreset);
     String? address;
     var addressText = _address.text.trim();
     // Bit instructions: a word or analog channel without a bit (I:1.0, N7:0) means bit 0.
-    final isBit = !_isShift && !_isWord && !_isCompare && !_isLimit && !_isTimer && !_isCounter && widget.mnemonic != 'RES';
+    final isBit = !_isArray && !_isWord && !_isCompare && !_isLimit && !_isTimer && !_isCounter && widget.mnemonic != 'RES';
     if (isBit && addressText.isNotEmpty && !addressText.contains('/')) addressText = '$addressText/0';
     try {
-      address = _isShift
+      address = _isArray
           ? Instruction.create(widget.mnemonic, addressText,
-              source: _source.text.trim(), mask: _mask.text.trim(), preset: presetOk ? preset ?? 0 : 0).target
+              source: _source.text.trim(),
+              mask: _mask.text.trim(),
+              offset: _offset.text.trim(),
+              preset: presetOk ? preset ?? 0 : 0).target
           : Instruction.create(widget.mnemonic, addressText, preset: presetOk ? preset ?? 0 : 0).target;
     } on FormatException {
       address = null;
@@ -197,12 +203,12 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         ((!_hasSource || source != null) && (!_hasMask || mask != null) && (!_hasOffset || offset != null));
     setState(() {
       _error = address == null ? 'Endereço inválido' : null;
-      _presetError = presetOk ? null : (_isShift ? 'Comprimento inválido (1 a 128)' : 'Preset inválido (0 a $maxPreset)');
-      _sourceError = _isShift
+      _presetError = presetOk ? null : (_isArray ? 'Comprimento inválido (1 a 128)' : 'Preset inválido (0 a $maxPreset)');
+      _sourceError = _isArray
           ? (address == null ? 'Verifique vetor, controle e bit/operando' : null)
           : (_hasSource && source == null ? 'Endereço ou valor inválido' : null);
-      _maskError = _hasMask && !_isShift && mask == null ? 'Endereço ou valor inválido' : null;
-      _offsetError = _hasOffset && offset == null ? 'Endereço ou valor inválido' : null;
+      _maskError = _hasMask && !_isArray && mask == null ? 'Endereço ou valor inválido' : null;
+      _offsetError = _hasOffset && !_isArray && offset == null ? 'Endereço ou valor inválido' : null;
     });
     if (address == null || !presetOk || !operandsOk) return;
     Navigator.pop(
@@ -213,9 +219,9 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         description: _description.text.trim(),
         timeBase: _timeBase,
         preset: preset ?? 0,
-        source: _isShift ? _source.text.trim() : source?.format() ?? '',
-        mask: _isShift ? _mask.text.trim() : mask?.format(hex: !_isLimit && !_isMath) ?? '',
-        offset: offset?.format() ?? '',
+        source: _isArray ? _source.text.trim() : source?.format() ?? '',
+        mask: _isArray ? _mask.text.trim() : mask?.format(hex: !_isLimit && !_isMath) ?? '',
+        offset: _isArray ? _offset.text.trim() : offset?.format() ?? '',
       ),
     );
   }
@@ -240,8 +246,8 @@ class _InstructionDialogState extends State<_InstructionDialog> {
           labelText: switch (widget.mnemonic) {
             'LIM' => 'Limite inferior',
             'BSL' || 'BSR' => 'Bit de entrada',
-            'FFL' || 'LFL' => 'Origem',
-            'FFU' || 'LFU' => 'Destino',
+            'FFL' || 'LFL' || 'SQC' || 'SQL' => 'Origem',
+            'FFU' || 'LFU' || 'SQO' => 'Destino',
             'ADD' || 'SUB' || 'MUL' || 'DIV' || 'AND' || 'OR' || 'XOR' || 'MOD' || 'XPY' => 'Origem A',
             'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'Origem B',
             _ => 'Origem',
@@ -269,8 +275,8 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   Widget _offsetField() => TextField(
         controller: _offset,
         decoration: InputDecoration(
-          labelText: 'Deslocamento',
-          hintText: 'N7:0 ou 0',
+          labelText: _isSequencer ? 'Controle (R6:n)' : 'Deslocamento',
+          hintText: _isSequencer ? 'R6:0' : 'N7:0 ou 0',
           errorText: _offsetError,
         ),
         onSubmitted: (_) => _submit(),
@@ -280,7 +286,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         controller: _address,
         autofocus: _isCompare || !_hasSource,
         decoration: InputDecoration(
-          labelText: _isShift ? 'Vetor' : _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
+          labelText: _isArray ? (_isSequencer ? 'Arquivo' : 'Vetor') : _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
           hintText: _hint,
           errorText: _chassisError ?? _error,
         ),
@@ -311,11 +317,11 @@ class _InstructionDialogState extends State<_InstructionDialog> {
               ],
               onChanged: (v) => setState(() => _timeBase = v ?? _timeBase),
             ),
-          if (_isTimer || _isCounter || _isShift)
+          if (_isTimer || _isCounter || _isArray)
             TextField(
               controller: _preset,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: _isShift ? 'Comprimento' : 'Preset', errorText: _presetError),
+              decoration: InputDecoration(labelText: _isArray ? 'Comprimento' : 'Preset', errorText: _presetError),
               onSubmitted: (_) => _submit(),
             ),
           TextField(

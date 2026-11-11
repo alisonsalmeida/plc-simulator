@@ -389,6 +389,7 @@ abstract final class ControlBit {
   static const dn = 13;
   static const em = 12;
   static const ul = 10;
+  static const fd = 8;
 }
 
 /// Interprets the low 16 bits of [value] as a signed integer.

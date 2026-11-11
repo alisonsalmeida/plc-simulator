@@ -38,7 +38,7 @@ double _seriesWidth(List<RungElement> elements) =>
     (elements.length + 1) * _slotW + elements.fold(0.0, (w, e) => w + _elementWidth(e));
 
 double _elementWidth(RungElement e) => switch (e) {
-      Ton() || Tof() || Rto() || Ctu() || Ctd() || WordInstruction() || CompareInstruction() || Lim() || ShiftInstruction() => boxCellW,
+      Ton() || Tof() || Rto() || Ctu() || Ctd() || WordInstruction() || CompareInstruction() || Lim() || ShiftInstruction() || SequencerInstruction() => boxCellW,
       Instruction() => _cellW,
       Branch(:final paths) =>
         2 * _joinW + paths.fold(0.0, (w, p) => w > _seriesWidth(p) ? w : _seriesWidth(p)),
@@ -71,6 +71,7 @@ double _cellTop(Instruction ins, Program program) {
 bool _isBox(RungElement e) => (e is BoxInstruction && e is! Res) ||
     e is WordInstruction ||
     e is ShiftInstruction ||
+    e is SequencerInstruction ||
     e is CompareInstruction ||
     e is Lim;
 
@@ -412,6 +413,7 @@ class _Ladder {
       CounterInstruction() ||
       WordInstruction() ||
       ShiftInstruction() ||
+      SequencerInstruction() ||
       CompareInstruction() ||
       Lim() =>
         false,
@@ -856,7 +858,7 @@ class _Cell extends StatelessWidget {
       BitInstruction(:final address) => ('${address.file.prefix}:${address.word}', address.bitLabel),
       BoxInstruction(:final element) => (element.toString(), ''),
       WordInstruction(:final dest) => (dest.toString(), ''),
-      ShiftInstruction() => (ins.target, ''),
+      ShiftInstruction() || SequencerInstruction() => (ins.target, ''),
       CompareInstruction() || Lim() => (ins.target, ''),
     };
     final side = (_cellW - glyphW) / 2;

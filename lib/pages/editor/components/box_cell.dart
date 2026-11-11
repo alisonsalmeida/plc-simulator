@@ -49,6 +49,7 @@ class BoxCell extends StatelessWidget {
 
   ElementAddress get _element => switch (instruction) {
         final ShiftInstruction s => s.control,
+        final SequencerInstruction s => s.control,
         final BoxInstruction b => b.element,
         _ => throw StateError('Not a box instruction'),
       };
@@ -61,7 +62,7 @@ class BoxCell extends StatelessWidget {
         Ctu() => _bit(CounterBit.cu),
         Ctd() => _bit(CounterBit.cd),
         StackUnloadInstruction() => _bit(ControlBit.eu),
-        ShiftInstruction() => _bit(ControlBit.en),
+        ShiftInstruction() || SequencerInstruction() => _bit(ControlBit.en),
         WordInstruction() => online && powered,
         final CompareInstruction c => online && c.holds(_read),
         final Lim l => online && l.holds(_read),
@@ -113,19 +114,23 @@ class BoxCell extends StatelessWidget {
         Ffu() => 'FIFO Unload',
         Lfl() => 'LIFO Load',
         Lfu() => 'LIFO Unload',
+        Sqo() => 'Sequencer Output',
+        Sqc() => 'Sequencer Compare',
+        Sql() => 'Sequencer Load',
         _ => '',
       };
 
   @override
   Widget build(BuildContext context) {
     final ins = instruction;
-    final singleWire = ins is! BoxInstruction && ins is! ShiftInstruction;
+    final singleWire = ins is! BoxInstruction && ins is! ShiftInstruction && ins is! SequencerInstruction;
     final isTimer = ins is TimerInstruction;
     final rows = <(String, String)>[
       if (ins is WordInstruction) ..._wordRows(ins) else if (ins is CompareInstruction) ...[
         ..._operandRows('Source A', ins.sourceA),
         ..._operandRows('Source B', ins.sourceB),
       ] else if (ins is ShiftInstruction) ..._shiftRows(ins)
+      else if (ins is SequencerInstruction) ..._sequencerRows(ins)
       else if (ins is Lim) ...[
         ..._operandRows('Low Lim', ins.low),
         ..._operandRows('Test', ins.test),
@@ -143,12 +148,12 @@ class BoxCell extends StatelessWidget {
     final height = (2 + rows.length) * _rowH;
     final (firstStub, secondStub) = switch (ins) {
       StackUnloadInstruction() => ('EU', 'DN'),
-      ShiftInstruction() => ('EN', 'DN'),
+      ShiftInstruction() || SequencerInstruction() => ('EN', 'DN'),
       _ => isTimer ? ('EN', 'DN') : (ins is Ctd ? 'CD' : 'CU', 'DN'),
     };
     final firstBit = switch (ins) {
       StackUnloadInstruction() => ControlBit.eu,
-      ShiftInstruction() => ControlBit.en,
+      ShiftInstruction() || SequencerInstruction() => ControlBit.en,
       _ => isTimer ? TimerBit.en : (ins is Ctd ? CounterBit.cd : CounterBit.cu),
     };
     final secondBit = isTimer ? TimerBit.dn : CounterBit.dn;
@@ -249,6 +254,19 @@ class BoxCell extends StatelessWidget {
         ],
     };
   }
+
+  /// Rows of a sequencer instruction: file, mask, operand, control, length and position.
+  List<(String, String)> _sequencerRows(SequencerInstruction ins) => [
+        ('File', '#${ins.file}'),
+        if (ins case Sqo(:final mask) || Sqc(:final mask)) ..._operandRows('Mask', mask, hex: true),
+        ...switch (ins) {
+          Sqo(:final dest) => _operandRows('Dest', dest),
+          Sqc(:final source) || Sql(:final source) => _operandRows('Source', source),
+        },
+        ('Control', ins.control.toString()),
+        ('Length', '${ins.length}'),
+        ('Position', '${online ? runtime.acc(ins.control) : 0}<'),
+      ];
 
   /// Operand rows of a word instruction: an address is followed by its live value
   /// (`100<`), a constant shows only the number.

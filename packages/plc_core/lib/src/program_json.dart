@@ -52,6 +52,20 @@ Map<String, Object?> _instructionToJson(Instruction i) {
       json['source'] = dest.toString();
       json['mask'] = control.toString();
       json['preset'] = length;
+    case Sqo(:final mask, :final dest, :final control, :final length):
+      json['source'] = dest.toString();
+      json['mask'] = mask.toString();
+      json['offset'] = control.toString();
+      json['preset'] = length;
+    case Sqc(:final mask, :final source, :final control, :final length):
+      json['source'] = source.toString();
+      json['mask'] = mask.toString();
+      json['offset'] = control.toString();
+      json['preset'] = length;
+    case Sql(:final source, :final control, :final length):
+      json['source'] = source.toString();
+      json['offset'] = control.toString();
+      json['preset'] = length;
     case Mov(:final source):
       json['source'] = source.toString();
     case Tod(:final source):
