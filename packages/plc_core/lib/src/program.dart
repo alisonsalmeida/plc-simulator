@@ -90,6 +90,8 @@ sealed class Instruction extends RungElement {
         'MOD' => Mod(source, mask, address),
         'XPY' || 'EXPT' => Xpy(source, mask, address),
         'SWP' || 'SWAP' => Swp(source, address),
+        'TOD' => Tod(source, address),
+        'FRD' => Frd(source, address),
         'ONS' => Ons(address),
         'NOT' => Not(source, address),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
@@ -287,6 +289,24 @@ final class Swp extends WordInstruction {
   final Operand source;
   @override
   String get mnemonic => 'SWP';
+}
+
+/// To BCD: dest = source (0..9999) as four BCD nibbles.
+final class Tod extends WordInstruction {
+  Tod(String source, super.dest) : source = Operand.parse(source);
+
+  final Operand source;
+  @override
+  String get mnemonic => 'TOD';
+}
+
+/// From BCD: dest = decimal value of the four BCD nibbles of source.
+final class Frd extends WordInstruction {
+  Frd(String source, super.dest) : source = Operand.parse(source);
+
+  final Operand source;
+  @override
+  String get mnemonic => 'FRD';
 }
 
 /// Clear: dest = 0.

@@ -86,7 +86,7 @@ class RungActions {
         _ => 0,
       },
       source: switch (ins) {
-        Mov(:final source) || Mvm(:final source) || Swp(:final source) => source.format(),
+        Mov(:final source) || Mvm(:final source) || Swp(:final source) || Tod(:final source) || Frd(:final source) => source.format(),
         BinaryMathInstruction(:final sourceA) || BinaryLogicInstruction(:final sourceA) => sourceA.format(),
         UnaryMathInstruction(:final source) || Scl(:final source) || Not(:final source) => source.format(),
         CompareInstruction(:final sourceB) => sourceB.format(),

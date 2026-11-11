@@ -99,6 +99,8 @@ class BoxCell extends StatelessWidget {
         Mod() => 'Modulo',
         Xpy() => 'Exponentiation',
         Swp() => 'Swap',
+        Tod() => 'Convert to BCD',
+        Frd() => 'Convert from BCD',
         _ => '',
       };
 
@@ -220,6 +222,10 @@ class BoxCell extends StatelessWidget {
         Swp() => [
             ..._operandRows('Source', ins.source),
             ..._operandRows('Dest', ins.dest),
+          ],
+        Tod(:final source, :final dest) || Frd(:final source, :final dest) => [
+            ..._operandRows('Source', source),
+            ..._operandRows('Dest', dest),
           ],
         Not() => [
             ..._operandRows('Source', ins.source),

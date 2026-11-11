@@ -274,6 +274,35 @@ class ScanEngine {
       case Swp(:final source, :final dest):
         final x = value(source);
         memory.writeWord(dest, (((x & 0xFF) << 8) | ((x >> 8) & 0xFF)).toSigned(16));
+      case Tod(:final source, :final dest):
+        final val = value(source);
+        if (val < 0 || val > 9999) {
+          memory.writeBit(overflowBit, true);
+          memory.writeBit(overflowTrapBit, true);
+        } else {
+          var temp = val;
+          final d0 = temp % 10;
+          temp ~/= 10;
+          final d1 = temp % 10;
+          temp ~/= 10;
+          final d2 = temp % 10;
+          temp ~/= 10;
+          final d3 = temp % 10;
+          final bcd = (d3 << 12) | (d2 << 8) | (d1 << 4) | d0;
+          memory.writeWord(dest, bcd);
+        }
+      case Frd(:final source, :final dest):
+        final val = value(source);
+        final d3 = (val >> 12) & 0xF;
+        final d2 = (val >> 8) & 0xF;
+        final d1 = (val >> 4) & 0xF;
+        final d0 = val & 0xF;
+        if (d3 > 9 || d2 > 9 || d1 > 9 || d0 > 9) {
+          memory.writeBit(overflowBit, true);
+          memory.writeBit(overflowTrapBit, true);
+        } else {
+          memory.writeWord(dest, d3 * 1000 + d2 * 100 + d1 * 10 + d0);
+        }
       case Mvm(:final source, :final mask, :final dest):
         final m = value(mask);
         memory.writeWord(dest, (memory.readWord(dest) & ~m) | (value(source) & m));

@@ -1,7 +1,7 @@
 enum InputKind { toggle, momentary }
 
 /// Tabs of the I/O panel.
-enum IoPanelTab { digital, analog }
+enum IoPanelTab { digital, analog, peripherals }
 
 class IoPanelState {
   const IoPanelState(this.kinds);

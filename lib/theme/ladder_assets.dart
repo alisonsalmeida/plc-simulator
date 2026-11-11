@@ -47,6 +47,8 @@ abstract final class LadderAssets {
     'MOD': 'assets/ladder/mod.svg',
     'XPY': 'assets/ladder/xpy.svg',
     'SWP': 'assets/ladder/swp.svg',
+    'TOD': 'assets/ladder/tod.svg',
+    'FRD': 'assets/ladder/frd.svg',
     'ONS': 'assets/ladder/ons.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',

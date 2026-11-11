@@ -50,6 +50,8 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'XOR': 'XOR – OU exclusivo bit a bit',
     'NOT': 'NOT – Inverter bits',
     'SWP': 'SWP – Trocar bytes',
+    'TOD': 'TOD – Converter para BCD',
+    'FRD': 'FRD – Converter de BCD',
   };
 
   static const _compareTools = {

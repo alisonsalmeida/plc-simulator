@@ -9,6 +9,8 @@ import '../../../models/io_panel_state.model.dart';
 import '../../../theme/app_theme.dart';
 import 'analog_input_tile.dart';
 import 'analog_output_tile.dart';
+import 'seven_segment_tile.dart';
+import 'thumbwheel_tile.dart';
 
 /// Virtual I/O: 16 input switches/push buttons and 16 output lamps.
 class IoPanel extends ConsumerWidget {
@@ -37,6 +39,19 @@ class IoPanel extends ConsumerWidget {
         Text('Saídas analógicas (O:$analogOutputSlot)', style: title),
         const SizedBox(height: 8),
         for (var ch = 0; ch < analogOutputChannels; ch++) AnalogOutputTile(channel: ch),
+      ]);
+    }
+    if (tab == IoPanelTab.peripherals) {
+      return ListView(padding: const EdgeInsets.all(12), children: [
+        tabs,
+        const SizedBox(height: 12),
+        Text('Thumbwheel (I:0)', style: title),
+        const SizedBox(height: 8),
+        const ThumbwheelTile(),
+        const SizedBox(height: 16),
+        Text('Display 7 segmentos (O:0)', style: title),
+        const SizedBox(height: 8),
+        const SevenSegmentTile(),
       ]);
     }
     return ListView(padding: const EdgeInsets.all(12), children: [
@@ -116,6 +131,7 @@ class _IoTabs extends StatelessWidget {
     return Row(children: [
       button(IoPanelTab.digital, 'Digitais', 'io-tab-digital'),
       button(IoPanelTab.analog, 'Analógicas', 'io-tab-analog'),
+      button(IoPanelTab.peripherals, 'Periféricos', 'io-tab-peripherals'),
     ]);
   }
 }

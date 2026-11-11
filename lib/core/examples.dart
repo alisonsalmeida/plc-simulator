@@ -481,5 +481,27 @@ final ladderExamples = <LadderExample>[
       },
     ),
   ),
+  LadderExample(
+    name: 'Display 7 segmentos e BCD (TOD / FRD)',
+    program: Program(
+      [
+        Rung(
+          [Frd('I:0', 'N7:0')],
+          title: 'ENTRADA BCD',
+          comment: 'FRD: lê a chave thumbwheel (BCD em I:0/0..3) e converte para decimal em N7:0.',
+        ),
+        Rung([Add('N7:0', '1', 'N7:1')], comment: 'ADD: soma 1 ao valor lido (o dígito 9 resulta em 10).'),
+        Rung(
+          [Tod('N7:1', 'O:0')],
+          title: 'SAÍDA BCD',
+          comment: 'TOD: converte N7:1 para BCD em O:0, que aciona o display de 7 segmentos (modo BCD).',
+        ),
+      ],
+      symbols: const {
+        'N7:0': 'VALOR_THUMBWHEEL',
+        'N7:1': 'VALOR_MAIS_UM',
+      },
+    ),
+  ),
   LadderExample(name: 'Novo programa', program: const Program([])),
 ];

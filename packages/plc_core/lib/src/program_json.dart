@@ -40,6 +40,10 @@ Map<String, Object?> _instructionToJson(Instruction i) {
       json['preset'] = preset;
     case Mov(:final source):
       json['source'] = source.toString();
+    case Tod(:final source):
+      json['source'] = source.toString();
+    case Frd(:final source):
+      json['source'] = source.toString();
     case Swp(:final source):
       json['source'] = source.toString();
     case Mvm(:final source, :final mask):

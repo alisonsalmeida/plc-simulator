@@ -2,11 +2,13 @@
 
 ## Next
 
-- [ ] Pluggable simulation peripherals: 7-segment display (BCD and direct), thumbwheel switch, traffic light, conveyor with separator
-- [ ] BCD conversion instructions: TOD (To BCD) and FRD (From BCD)
+- [ ] Process simulation window: Bottle Filling Line (animated 2D simulation with conveyor, fill nozzle, capper, reject piston, BSL/BSR shift registers and R6 control file)
+- [ ] FIFO/LIFO queue/stack instructions: FFL, FFU, LFL, LFU with R6 Control data file
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
+- [x] Pluggable simulation peripherals: 7-segment display (BCD and direct), thumbwheel switch in dedicated Periféricos tab with up to 4 digits
+- [x] BCD conversion instructions: TOD (To BCD) and FRD (From BCD)
 - [x] I/O bit forcing (Forces ON/OFF) with indicators in data table and status bar
 - [x] Bundled curriculum examples: motor reversing with interlock, star-delta starter, batch counter (ADD/MOD), complete tank process
 - [x] Remaining curriculum instructions: MOD (modulo/batches), XPY/EXPT (power), SWP (swap bytes), ONS (one-shot rising)
