@@ -21,6 +21,7 @@ class ProjectTree extends ConsumerWidget {
     (BitFile.timer, 'T4 - TIMER'),
     (BitFile.counter, 'C5 - COUNTER'),
     (BitFile.integer, 'N7 - INTEGER'),
+    (BitFile.float, 'F8 - FLOAT'),
   ];
 
   @override

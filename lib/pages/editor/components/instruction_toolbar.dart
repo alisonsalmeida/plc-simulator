@@ -29,6 +29,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'OTE': 'OTE – Saída (energizar)',
     'OTL': 'OTL – Saída com retenção (latch)',
     'OTU': 'OTU – Desliga retenção (unlatch)',
+    'ONS': 'ONS – Pulso de borda de subida',
   };
   static const _timerCounterTools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
@@ -48,6 +49,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'OR': 'OR – OU bit a bit',
     'XOR': 'XOR – OU exclusivo bit a bit',
     'NOT': 'NOT – Inverter bits',
+    'SWP': 'SWP – Trocar bytes',
   };
 
   static const _compareTools = {
@@ -70,6 +72,8 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'NEG': 'NEG – Negar',
     'SQR': 'SQR – Raiz quadrada',
     'SCL': 'SCL – Escalonar',
+    'MOD': 'MOD – Resto da divisão',
+    'XPY': 'XPY – Potência X^Y',
   };
 
   String _tab = 'User';

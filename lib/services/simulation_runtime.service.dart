@@ -28,7 +28,7 @@ class SimulationRuntimeService implements IRuntimeService {
   static const _noiseAmplitude = 500;
 
   /// Files whose contents survive editing the program.
-  static const _keptFiles = [BitFile.bit, BitFile.timer, BitFile.counter, BitFile.integer];
+  static const _keptFiles = [BitFile.bit, BitFile.timer, BitFile.counter, BitFile.integer, BitFile.float];
 
   @override
   RuntimeState get current => _state;
@@ -127,6 +127,12 @@ class SimulationRuntimeService implements IRuntimeService {
       return setAnalogInput(address.element - 1, value);
     }
     _engine!.memory.writeWord(address, value);
+    _emit(_state.copyWith(data: _snapshot()));
+  }
+
+  @override
+  void writeFloat(WordAddress address, double value) {
+    _engine!.memory.writeFloat(address, value);
     _emit(_state.copyWith(data: _snapshot()));
   }
 

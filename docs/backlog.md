@@ -2,13 +2,13 @@
 
 ## Next
 
-- [ ] Remaining curriculum instructions: MOD (modulo/batches), XPY/EXPT (power), SWP (swap bytes), ONS (one-shot rising)
-- [ ] F8 Data File (32-bit float) and INT <-> REAL conversion for flow and tank volume
 - [ ] I/O bit forcing (Forces ON/OFF) with indicators in data table and status bar
 - [ ] Bundled curriculum examples: motor reversing with interlock, star-delta starter, batch counter (ADD/MOD), complete tank process
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
+- [x] Remaining curriculum instructions: MOD (modulo/batches), XPY/EXPT (power), SWP (swap bytes), ONS (one-shot rising)
+- [x] F8 Data File (32-bit float) and INT <-> REAL conversion for flow and tank volume
 - [x] RSLogix-style window chrome, stage 2: project tree, data files, find/replace, status bar
 - [x] Parallel branch placement (drop contacts in parallel to create or expand branches easily)
 - [x] Move already-placed instructions and branches on rungs (drag and drop to reposition)

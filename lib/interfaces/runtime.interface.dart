@@ -24,6 +24,9 @@ abstract class IRuntimeService {
   /// Writes a data table word (the low 16 bits of [value]); works in STOP and RUN.
   void writeWord(WordAddress address, int value);
 
+  /// Writes a 32-bit float to the `F8` element at [address]; works in STOP and RUN.
+  void writeFloat(WordAddress address, double value);
+
   /// Flips one data table bit; works in STOP and RUN.
   void toggleBit(BitAddress address);
 

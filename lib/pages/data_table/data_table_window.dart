@@ -7,6 +7,7 @@ import '../../models/radix.model.dart';
 import '../../theme/app_theme.dart';
 import 'components/bit_file_grid.dart';
 import 'components/element_grid.dart';
+import 'components/float_grid.dart';
 import 'components/grid_cell.dart';
 import 'components/integer_grid.dart';
 
@@ -30,6 +31,7 @@ class _DataTableWindowState extends ConsumerState<DataTableWindow> {
     BitFile.timer: 'TIMER',
     BitFile.counter: 'COUNTER',
     BitFile.integer: 'INTEGER',
+    BitFile.float: 'FLOAT',
   };
 
   /// File numbers as RSLogix numbers them (O0, I1, S2, B3, T4, C5, N7).
@@ -37,6 +39,7 @@ class _DataTableWindowState extends ConsumerState<DataTableWindow> {
         BitFile.output => 'O0',
         BitFile.input => 'I1',
         BitFile.status => 'S2',
+        BitFile.float => 'F8',
         _ => f.prefix,
       };
 
@@ -48,9 +51,10 @@ class _DataTableWindowState extends ConsumerState<DataTableWindow> {
     final controller = ref.read(dataTableProvider.notifier);
     final file = state.file;
     final isInteger = file == BitFile.integer;
-    final title = 'Data File ${_id(file)} (${isInteger ? state.radix.tag : 'bin'}) -- ${_names[file]}';
+    final title = 'Data File ${_id(file)} (${isInteger ? state.radix.tag : (file == BitFile.float ? 'float' : 'bin')}) -- ${_names[file]}';
     final grid = switch (file) {
       BitFile.integer => IntegerGrid(radix: state.radix, selected: _selected, onSelect: _select),
+      BitFile.float => FloatGrid(selected: _selected, onSelect: _select),
       BitFile.timer || BitFile.counter =>
         ElementGrid(file: file, selected: _selected, onSelect: _select),
       _ => BitFileGrid(file: file, selected: _selected, onSelect: _select),

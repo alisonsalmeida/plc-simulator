@@ -64,6 +64,8 @@ class BoxCell extends StatelessWidget {
 
   int _read(Operand o) => switch (o) {
         Constant(:final value) => value,
+        FloatConstant(:final value) => value.round(),
+        WordAddress(file: BitFile.float) => runtime.float(o).round(),
         WordAddress() => runtime.word(o),
       };
 
@@ -94,6 +96,9 @@ class BoxCell extends StatelessWidget {
         Or() => 'Bitwise Inclusive OR',
         Xor() => 'Bitwise Exclusive OR',
         Not() => 'Logical NOT',
+        Mod() => 'Modulo',
+        Xpy() => 'Exponentiation',
+        Swp() => 'Swap',
         _ => '',
       };
 
@@ -212,6 +217,10 @@ class BoxCell extends StatelessWidget {
             ..._operandRows('Source B', ins.sourceB),
             ..._operandRows('Dest', ins.dest),
           ],
+        Swp() => [
+            ..._operandRows('Source', ins.source),
+            ..._operandRows('Dest', ins.dest),
+          ],
         Not() => [
             ..._operandRows('Source', ins.source),
             ..._operandRows('Dest', ins.dest),
@@ -229,7 +238,8 @@ class BoxCell extends StatelessWidget {
       };
 
   List<(String, String)> _operandRows(String label, Operand o, {bool hex = false}) => switch (o) {
-        Constant() => [(label, o.format(hex: hex))],
+        Constant() || FloatConstant() => [(label, o.format(hex: hex))],
+        WordAddress(file: BitFile.float) => [(label, o.toString()), ('', '${online ? formatFloat(runtime.float(o)) : 0.0}<')],
         WordAddress() => [(label, o.toString()), ('', '${online ? runtime.word(o) : 0}<')],
       };
 

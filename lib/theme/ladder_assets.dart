@@ -44,6 +44,10 @@ abstract final class LadderAssets {
     'OR': 'assets/ladder/or.svg',
     'XOR': 'assets/ladder/xor.svg',
     'NOT': 'assets/ladder/not.svg',
+    'MOD': 'assets/ladder/mod.svg',
+    'XPY': 'assets/ladder/xpy.svg',
+    'SWP': 'assets/ladder/swp.svg',
+    'ONS': 'assets/ladder/ons.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

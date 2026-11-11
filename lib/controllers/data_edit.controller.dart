@@ -11,6 +11,9 @@ class DataEditController extends Notifier<void> {
   void writeWord(WordAddress address, int value) =>
       ref.read(runtimeServiceProvider).writeWord(address, value);
 
+  void writeFloat(WordAddress address, double value) =>
+      ref.read(runtimeServiceProvider).writeFloat(address, value);
+
   void toggleBit(BitAddress address) => ref.read(runtimeServiceProvider).toggleBit(address);
 
   void setBit(BitAddress address, bool value) =>

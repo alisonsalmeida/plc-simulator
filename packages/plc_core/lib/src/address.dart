@@ -10,7 +10,9 @@ enum BitFile {
   bit('B3', 16),
   timer('T4', 16, stride: 3, bitNames: {'EN': 15, 'TT': 14, 'DN': 13}),
   counter('C5', 16, stride: 3, bitNames: {'CU': 15, 'CD': 14, 'DN': 13, 'OV': 12, 'UN': 11}),
-  integer('N7', 32);
+  integer('N7', 32),
+  // F8: 32-bit IEEE-754 floats, two words per element (low word first).
+  float('F8', 16, stride: 2);
 
   const BitFile(this.prefix, this.elements, {this.stride = 1, this.bitNames = const {}});
 
@@ -187,17 +189,18 @@ String canonicalAddress(String text) {
   }
 }
 
-/// A source or mask of a word instruction: a [WordAddress] or a [Constant].
+/// A source or mask of a word instruction: a [WordAddress], a [Constant] or a [FloatConstant].
 sealed class Operand {
   const Operand();
 
-  /// Parses a word address or an integer constant (decimal, −32768..32767). When [mask] is
+  /// Parses a word address, a float literal (`12.5`) or an integer constant (decimal, −32768..32767). When [mask] is
   /// true a constant may also be hex: `00FFh` or `0x00FF` (up to 4 digits). Throws
   /// [FormatException] when invalid or out of range.
   factory Operand.parse(String text, {bool mask = false}) {
     final s = text.trim().toUpperCase();
     final decimal = RegExp(r'^[+-]?\d+$').hasMatch(s);
     final hex = mask ? RegExp(r'^(?:0X([0-9A-F]{1,4})|([0-9A-F]{1,4})H)$').firstMatch(s) : null;
+    if (RegExp(r'^[+-]?\d+\.\d+$').hasMatch(s)) return FloatConstant(double.parse(s));
     if (decimal) {
       final v = int.parse(s);
       if (v < -32768 || v > 32767) throw FormatException('Constant out of range', text);
@@ -232,10 +235,26 @@ final class Constant extends Operand {
   int get hashCode => value.hashCode;
 }
 
+/// A floating-point constant (32-bit REAL), e.g. `12.5`.
+final class FloatConstant extends Operand {
+  const FloatConstant(this.value);
+
+  final double value;
+
+  @override
+  String format({bool hex = false}) => '$value';
+
+  @override
+  bool operator ==(Object other) => other is FloatConstant && other.value == value;
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
 /// Which word of a data file element a [WordAddress] points at.
 enum WordField { word, pre, acc }
 
-/// A 16-bit word in a data file: `N7:n`, `B3:n`, `O:0`, `I:0`, `S:0`/`S:1`, or the preset
+/// A 16-bit word in a data file (or the first word of a float `F8:n`): `N7:n`, `B3:n`, `O:0`, `I:0`, `S:0`/`S:1`, or the preset
 /// / accumulator of a timer or counter: `T4:n.PRE`, `T4:n.ACC`, `C5:n.PRE`, `C5:n.ACC`.
 final class WordAddress extends Operand {
   const WordAddress(this.file, this.element, [this.field = WordField.word]);
@@ -243,7 +262,7 @@ final class WordAddress extends Operand {
   /// Parses a word address; throws [FormatException] when invalid or out of range.
   factory WordAddress.parse(String text) {
     final s = text.trim().toUpperCase();
-    final plain = RegExp(r'^(S|B3|N7):(\d+)$').firstMatch(s);
+    final plain = RegExp(r'^(S|B3|N7|F8):(\d+)$').firstMatch(s);
     final io = RegExp(r'^(O|I):(\d+)(?:\.(\d+))?$').firstMatch(s);
     final structured = RegExp(r'^(T4|C5):(\d+)\.(ACC|PRE)$').firstMatch(s);
     final m = plain ?? io ?? structured;

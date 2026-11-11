@@ -94,6 +94,7 @@ class ScanEngine {
       power = switch (e) {
         Xic(:final address) => power && memory.readBit(address),
         Xio(:final address) => power && !memory.readBit(address),
+        Ons(:final address) => _ons(address, power),
         Ote(:final address) => _write(address, power, power),
         Otl(:final address) => power ? _write(address, true, power) : power,
         Otu(:final address) => power ? _write(address, false, power) : power,
@@ -110,6 +111,13 @@ class ScanEngine {
       if (e is Instruction) trace.add(power);
     }
     return power;
+  }
+
+  /// One-shot rising: true only on the scan where [power] went from false to true.
+  bool _ons(BitAddress address, bool power) {
+    final prev = memory.readBit(address);
+    memory.writeBit(address, power);
+    return power && !prev;
   }
 
   bool _write(BitAddress a, bool value, bool power) {
@@ -210,20 +218,46 @@ class ScanEngine {
   /// Signed value of an operand: the constant itself or the word it addresses.
   int _value(Operand o) => switch (o) {
         Constant(:final value) => value,
+        FloatConstant(:final value) => _toInt(value),
+        WordAddress(file: BitFile.float) => _toInt(memory.readFloat(o)),
         WordAddress() => memory.readWord(o),
       };
+
+  /// Float value of an operand (integers are converted).
+  double _real(Operand o) => switch (o) {
+        FloatConstant(:final value) => value,
+        WordAddress(file: BitFile.float) => memory.readFloat(o),
+        _ => _value(o).toDouble(),
+      };
+
+  static bool _isFloat(Operand o) =>
+      o is FloatConstant || (o is WordAddress && o.file == BitFile.float);
+
+  /// Nearest signed 16-bit integer of [f] (NaN gives 0).
+  static int _toInt(double f) => f.isNaN ? 0 : (f.isInfinite ? f : f.roundToDouble()).clamp(-32768, 32767).toInt();
 
   bool _move(WordInstruction w, bool power) {
     if (!power) return power;
     final value = _value;
     switch (w) {
       case Mov(:final source, :final dest):
-        memory.writeWord(dest, value(source));
+        if (dest.file == BitFile.float) {
+          memory.writeFloat(dest, _real(source));
+        } else {
+          memory.writeWord(dest, value(source));
+        }
+      case Swp(:final source, :final dest):
+        final x = value(source);
+        memory.writeWord(dest, (((x & 0xFF) << 8) | ((x >> 8) & 0xFF)).toSigned(16));
       case Mvm(:final source, :final mask, :final dest):
         final m = value(mask);
         memory.writeWord(dest, (memory.readWord(dest) & ~m) | (value(source) & m));
       case Clr(:final dest):
-        memory.writeWord(dest, 0);
+        if (dest.file == BitFile.float) {
+          memory.writeFloat(dest, 0);
+        } else {
+          memory.writeWord(dest, 0);
+        }
       case final MathInstruction m:
         _math(m);
       case final LogicInstruction l:
@@ -253,6 +287,7 @@ class ScanEngine {
   /// 32767 / -32768 and sets overflow (S:0/1) and the trap bit S:5/0. The math register
   /// S:13 / S:14 is not modelled.
   void _math(MathInstruction m) {
+    if (m.dest.file == BitFile.float || m.operands.any(_isFloat)) return _floatMath(m);
     final v = _value;
     var carry = false;
     var overflow = false;
@@ -282,12 +317,58 @@ class ScanEngine {
         result = sqrt(x.abs()).round();
       case Scl(:final source, :final rate, :final offset):
         result = _roundedDiv(v(source) * v(rate) + v(offset) * 10000, 10000);
+      case Mod(:final sourceA, :final sourceB):
+        final b = v(sourceB);
+        if (b == 0) {
+          result = 0;
+          overflow = true;
+        } else {
+          result = v(sourceA) % b;
+        }
+      case Xpy(:final sourceA, :final sourceB):
+        final p = pow(v(sourceA).toDouble(), v(sourceB).toDouble()).toDouble();
+        if (p.isNaN) {
+          result = 0;
+          overflow = true;
+        } else {
+          // Out-of-range (or infinite) results are clamped below.
+          result = p.isInfinite || p.abs() > 1e9 ? (p > 0 ? 32768 : -32769) : p.round();
+        }
     }
     if (result > 32767 || result < -32768) {
       result = result > 0 ? 32767 : -32768;
       overflow = true;
     }
     memory.writeWord(m.dest, result);
+    memory.writeBit(carryBit, carry);
+    memory.writeBit(overflowBit, overflow);
+    memory.writeBit(zeroBit, result == 0);
+    memory.writeBit(signBit, result < 0);
+    if (overflow) memory.writeBit(overflowTrapBit, true);
+  }
+
+  /// Math in 32-bit float when the destination or a source is `F8` or a float constant.
+  /// A non-float destination receives the rounded, clamped result.
+  void _floatMath(MathInstruction m) {
+    final r = _real;
+    final double result = switch (m) {
+      Add(:final sourceA, :final sourceB) => r(sourceA) + r(sourceB),
+      Sub(:final sourceA, :final sourceB) => r(sourceA) - r(sourceB),
+      Mul(:final sourceA, :final sourceB) => r(sourceA) * r(sourceB),
+      Div(:final sourceA, :final sourceB) => r(sourceA) / r(sourceB),
+      Mod(:final sourceA, :final sourceB) => r(sourceA) % r(sourceB),
+      Xpy(:final sourceA, :final sourceB) => pow(r(sourceA), r(sourceB)).toDouble(),
+      Neg(:final source) => -r(source),
+      Sqr(:final source) => sqrt(r(source).abs()),
+      Scl(:final source, :final rate, :final offset) => r(source) * r(rate) / 10000 + r(offset),
+    };
+    final carry = m is Sqr && r(m.source) < 0;
+    final overflow = result.isNaN || result.isInfinite;
+    if (m.dest.file == BitFile.float) {
+      memory.writeFloat(m.dest, result);
+    } else {
+      memory.writeWord(m.dest, _toInt(result));
+    }
     memory.writeBit(carryBit, carry);
     memory.writeBit(overflowBit, overflow);
     memory.writeBit(zeroBit, result == 0);

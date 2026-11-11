@@ -405,7 +405,7 @@ class _Ladder {
       Xic(:final address) => runtime.bit(address),
       Xio(:final address) => !runtime.bit(address),
       Ote(:final address) || Otl(:final address) => runtime.bit(address),
-      Otu() || Res() => powerOut,
+      Otu() || Res() || Ons() => powerOut,
       // Boxes are highlighted by BoxCell from their own status bits.
       TimerInstruction() ||
       CounterInstruction() ||

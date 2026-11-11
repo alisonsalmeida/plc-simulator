@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:plc_core/plc_core.dart';
 
 enum RuntimeMode { stop, run, step }
@@ -47,6 +49,12 @@ class RuntimeState {
   /// Value (signed 16-bit) of a word operand after the last scan.
   int word(WordAddress a) => toInt16(_word(a.file, a.index));
 
+  /// Value of an `F8` element (32-bit float, low word first) after the last scan.
+  double float(WordAddress a) => (ByteData(4)
+        ..setUint16(0, _word(a.file, a.index), Endian.little)
+        ..setUint16(2, _word(a.file, a.index + 1), Endian.little))
+      .getFloat32(0, Endian.little);
+
   int _word(BitFile file, int index) => data[file]?[index] ?? 0;
 
   RuntimeState copyWith({
@@ -70,3 +78,6 @@ class RuntimeState {
         data: data ?? this.data,
       );
 }
+
+/// A float as shown in the data table and on boxes: at most 7 significant digits.
+String formatFloat(double v) => v.isFinite ? '${double.parse(v.toStringAsPrecision(7))}' : '$v';

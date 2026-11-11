@@ -38,7 +38,9 @@ sealed class Instruction extends RungElement {
   /// [address] the destination); SCL ([source] is the source, [mask] the rate, [offset]
   /// the offset, [address] the destination; each source operand a word address or constant);
   /// AND, OR, XOR ([source] is Source A, [mask] Source B, [address] the destination word);
-  /// NOT ([source] is the source, [address] the destination).
+  /// NOT ([source] is the source, [address] the destination); MOD, XPY / EXPT ([source] is
+  /// Source A, [mask] Source B, [address] the destination); SWP / SWAP ([source] is the
+  /// source, [address] the destination); ONS (bit [address]).
   /// The extra arguments are ignored where they
   /// do not apply.
   ///
@@ -85,6 +87,10 @@ sealed class Instruction extends RungElement {
         'AND' => And(source, mask, address),
         'OR' => Or(source, mask, address),
         'XOR' => Xor(source, mask, address),
+        'MOD' => Mod(source, mask, address),
+        'XPY' || 'EXPT' => Xpy(source, mask, address),
+        'SWP' || 'SWAP' => Swp(source, address),
+        'ONS' => Ons(address),
         'NOT' => Not(source, address),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
@@ -122,6 +128,16 @@ final class Xio extends BitInstruction {
   Xio(super.address);
   @override
   String get mnemonic => 'XIO';
+  @override
+  bool get isOutput => false;
+}
+
+/// One-shot rising: passes power for a single scan on each false-to-true transition of the
+/// rung; the bit stores the previous rung state.
+final class Ons extends BitInstruction {
+  Ons(super.address);
+  @override
+  String get mnemonic => 'ONS';
   @override
   bool get isOutput => false;
 }
@@ -264,6 +280,15 @@ final class Mvm extends WordInstruction {
   String get mnemonic => 'MVM';
 }
 
+/// Swap bytes: dest = source with its high and low bytes exchanged.
+final class Swp extends WordInstruction {
+  Swp(String source, super.dest) : source = Operand.parse(source);
+
+  final Operand source;
+  @override
+  String get mnemonic => 'SWP';
+}
+
 /// Clear: dest = 0.
 final class Clr extends WordInstruction {
   Clr(super.dest);
@@ -321,6 +346,20 @@ final class Div extends BinaryMathInstruction {
   Div(super.sourceA, super.sourceB, super.dest);
   @override
   String get mnemonic => 'DIV';
+}
+
+/// Modulo: dest = A % B (integer remainder); B = 0 sets overflow and gives 0.
+final class Mod extends BinaryMathInstruction {
+  Mod(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'MOD';
+}
+
+/// Exponentiation: dest = A ^ B.
+final class Xpy extends BinaryMathInstruction {
+  Xpy(super.sourceA, super.sourceB, super.dest);
+  @override
+  String get mnemonic => 'XPY';
 }
 
 /// Single-source math instruction.
