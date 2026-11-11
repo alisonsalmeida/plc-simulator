@@ -20,8 +20,8 @@ class InstructionToolbar extends ConsumerStatefulWidget {
 }
 
 class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
-  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer'];
-  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer'};
+  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer', 'File/Misc'];
+  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer', 'File/Misc'};
   static const _tools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
     'XIC': 'XIC – Contato NA',
@@ -69,6 +69,14 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'SQO': 'SQO – Saída de sequenciador',
     'SQC': 'SQC – Comparação de sequenciador',
     'SQL': 'SQL – Carga de sequenciador',
+  };
+
+  static const _fileTools = {
+    LadderAssets.branch: 'BRANCH – Ramo paralelo',
+    'COP': 'COP – Copiar arquivo',
+    'FLL': 'FLL – Preencher arquivo',
+    'AVE': 'AVE – Média de arquivo',
+    'SRT': 'SRT – Ordenar arquivo',
   };
 
   static const _compareTools = {
@@ -133,6 +141,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
               'Move/Logical' => _moveTools,
               'Shift/FIFO' => _shiftTools,
               'Sequencer' => _sequencerTools,
+              'File/Misc' => _fileTools,
               _ => _tools,
             }).entries)
               Tooltip(

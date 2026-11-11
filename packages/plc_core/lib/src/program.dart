@@ -49,6 +49,10 @@ sealed class Instruction extends RungElement {
   /// SQO ([address] is the file's first word, [mask] the mask, [source] the destination word,
   /// [offset] the `R6:n` control element, [preset] the length); SQC ([source] is the
   /// compared word or constant); SQL ([source] is the value loaded).
+  /// COP ([source] is the first source word, [address] the first destination word, [preset]
+  /// the length); FLL ([source] is the fill value); AVE ([address] is the file's first word,
+  /// [source] the destination, [offset] the `R6:n` control element); SRT ([address] is the
+  /// file's first word, [offset] the control element).
   /// The extra arguments are ignored where they
   /// do not apply.
   ///
@@ -111,6 +115,19 @@ sealed class Instruction extends RungElement {
         'SQO' => Sqo(file: address, mask: mask, dest: source, control: offset, length: preset),
         'SQC' => Sqc(file: address, mask: mask, source: source, control: offset, length: preset),
         'SQL' => Sql(file: address, source: source, control: offset, length: preset),
+        'COP' => Cop(source: WordAddress.parse(source), dest: WordAddress.parse(address), length: preset),
+        'FLL' => Fll(source: Operand.parse(source), dest: WordAddress.parse(address), length: preset),
+        'AVE' => Ave(
+            file: WordAddress.parse(address),
+            dest: WordAddress.parse(source),
+            control: ElementAddress.parse(offset, only: BitFile.control),
+            length: preset,
+          ),
+        'SRT' => Srt(
+            file: WordAddress.parse(address),
+            control: ElementAddress.parse(offset, only: BitFile.control),
+            length: preset,
+          ),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -797,6 +814,88 @@ final class Sql extends SequencerInstruction {
   String get mnemonic => 'SQL';
 }
 
+/// Largest length of a file batch instruction (COP, FLL, AVE, SRT).
+const maxFileLength = 128;
+
+void _checkFileRange(WordAddress file, int length) {
+  RangeError.checkValueInInterval(length, 1, maxFileLength, 'length');
+  if (file.element + length > file.file.elements) {
+    throw FormatException('File out of range', file.toString());
+  }
+}
+
+/// Non-retentive file copy: [length] words from [source] to [dest] while the rung is true.
+final class Cop extends Instruction {
+  Cop({required this.source, required this.dest, required this.length}) {
+    _checkFileRange(source, length);
+    _checkFileRange(dest, length);
+  }
+
+  final WordAddress source;
+  final WordAddress dest;
+  final int length;
+
+  @override
+  String get mnemonic => 'COP';
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => dest.toString();
+}
+
+/// File fill: [source] is written to [length] words from [dest] while the rung is true.
+final class Fll extends Instruction {
+  Fll({required this.source, required this.dest, required this.length}) {
+    _checkFileRange(dest, length);
+  }
+
+  final Operand source;
+  final WordAddress dest;
+  final int length;
+
+  @override
+  String get mnemonic => 'FLL';
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => dest.toString();
+}
+
+/// Base of the file instructions that run once per rung rising edge with an `R6:n` control
+/// element (AVE, SRT).
+sealed class FileControlInstruction extends Instruction {
+  FileControlInstruction({required this.file, required this.control, required this.length}) {
+    if (control.file != BitFile.control) throw FormatException('Control must be an R6 element', control.toString());
+    _checkFileRange(file, length);
+  }
+
+  final WordAddress file;
+  final ElementAddress control;
+  final int length;
+
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => file.toString();
+}
+
+/// File average: the mean of [length] words from [file] goes to [dest].
+final class Ave extends FileControlInstruction {
+  Ave({required super.file, required this.dest, required super.control, required super.length});
+
+  final WordAddress dest;
+  @override
+  String get mnemonic => 'AVE';
+}
+
+/// File sort: [length] words from [file] are sorted in place, ascending.
+final class Srt extends FileControlInstruction {
+  Srt({required super.file, required super.control, required super.length});
+
+  @override
+  String get mnemonic => 'SRT';
+}
+
 /// Parallel branch: power out is the OR of every path.
 final class Branch extends RungElement {
   const Branch(this.paths);
@@ -828,16 +927,17 @@ class IoMappingConfig {
     this.digitalOutputSlot = 0,
     this.analogInputSlot = 1,
     this.analogOutputSlot = 2,
-    this.thumbwheelSlot = 0,
-    this.sevenSegmentSlot = 0,
+    this.thumbwheelSlot,
+    this.sevenSegmentSlot,
   });
 
   final int digitalInputSlot;
   final int digitalOutputSlot;
   final int analogInputSlot;
   final int analogOutputSlot;
-  final int thumbwheelSlot;
-  final int sevenSegmentSlot;
+  /// Null means the peripheral is not associated with any slot.
+  final int? thumbwheelSlot;
+  final int? sevenSegmentSlot;
 
   IoMappingConfig copyWith({
     int? digitalInputSlot,
@@ -845,14 +945,20 @@ class IoMappingConfig {
     int? analogInputSlot,
     int? analogOutputSlot,
     int? thumbwheelSlot,
+    bool clearThumbwheel = false,
     int? sevenSegmentSlot,
+    bool clearSevenSegment = false,
   }) => IoMappingConfig(
     digitalInputSlot: digitalInputSlot ?? this.digitalInputSlot,
     digitalOutputSlot: digitalOutputSlot ?? this.digitalOutputSlot,
     analogInputSlot: analogInputSlot ?? this.analogInputSlot,
     analogOutputSlot: analogOutputSlot ?? this.analogOutputSlot,
-    thumbwheelSlot: thumbwheelSlot ?? this.thumbwheelSlot,
-    sevenSegmentSlot: sevenSegmentSlot ?? this.sevenSegmentSlot,
+    thumbwheelSlot: clearThumbwheel
+        ? null
+        : (thumbwheelSlot ?? this.thumbwheelSlot),
+    sevenSegmentSlot: clearSevenSegment
+        ? null
+        : (sevenSegmentSlot ?? this.sevenSegmentSlot),
   );
 
   Map<String, Object?> toJson() => {
@@ -870,8 +976,8 @@ class IoMappingConfig {
         digitalOutputSlot: json['digitalOutputSlot'] as int? ?? 0,
         analogInputSlot: json['analogInputSlot'] as int? ?? 1,
         analogOutputSlot: json['analogOutputSlot'] as int? ?? 2,
-        thumbwheelSlot: json['thumbwheelSlot'] as int? ?? 0,
-        sevenSegmentSlot: json['sevenSegmentSlot'] as int? ?? 0,
+        thumbwheelSlot: json['thumbwheelSlot'] as int?,
+        sevenSegmentSlot: json['sevenSegmentSlot'] as int?,
       );
 
   @override

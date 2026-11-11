@@ -126,4 +126,104 @@ void main() {
     e.inputImage = 0x2;
     expect(e.scan().rungs.single, [false, true, true, true]);
   });
+
+  group('file batch instructions', () {
+    const r0 = ElementAddress(BitFile.control, 0);
+    int n7(ScanEngine e, int i) => e.memory.readWord(WordAddress(BitFile.integer, i));
+    void setN7(ScanEngine e, int i, int v) => e.memory.writeWord(WordAddress(BitFile.integer, i), v);
+    double f8(ScanEngine e, int i) => e.memory.readFloat(WordAddress(BitFile.float, i));
+    bool ctl(ScanEngine e, int b) => e.memory.readBit(r0.bitAt(b));
+
+    test('COP copies a word array while the rung is true', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Instruction.create('COP', 'N7:10', source: '#N7:0', preset: 3)]),
+      ]);
+      for (var i = 0; i < 3; i++) {
+        setN7(e, i, 10 * (i + 1));
+      }
+      e.scan();
+      expect([n7(e, 10), n7(e, 11), n7(e, 12)], [0, 0, 0]);
+      e.inputImage = 1;
+      e.scan();
+      expect([n7(e, 10), n7(e, 11), n7(e, 12)], [10, 20, 30]);
+    });
+
+    test('COP copies a float array', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Instruction.create('COP', 'F8:4', source: 'F8:0', preset: 2)]),
+      ]);
+      e.memory.writeFloat(const WordAddress(BitFile.float, 0), 1.5);
+      e.memory.writeFloat(const WordAddress(BitFile.float, 1), -2.25);
+      e.inputImage = 1;
+      e.scan();
+      expect([f8(e, 4), f8(e, 5)], [1.5, -2.25]);
+    });
+
+    test('FLL fills with a constant and with a word address', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Instruction.create('FLL', 'N7:0', source: '7', preset: 3)]),
+        Rung([Xic('I:0/0'), Instruction.create('FLL', 'N7:10', source: 'N7:0', preset: 2)]),
+        Rung([Xic('I:0/0'), Instruction.create('FLL', 'F8:0', source: '2.5', preset: 2)]),
+      ]);
+      e.inputImage = 1;
+      e.scan();
+      expect([n7(e, 0), n7(e, 1), n7(e, 2), n7(e, 3)], [7, 7, 7, 0]);
+      expect([n7(e, 10), n7(e, 11), n7(e, 12)], [7, 7, 0]);
+      expect([f8(e, 0), f8(e, 1)], [2.5, 2.5]);
+    });
+
+    test('AVE averages an integer array and sets EN, DN, POS and LEN', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Instruction.create('AVE', 'N7:0', source: 'N7:9', offset: 'R6:0', preset: 3)]),
+      ]);
+      setN7(e, 0, 10);
+      setN7(e, 1, 20);
+      setN7(e, 2, 33);
+      e.inputImage = 1;
+      e.scan();
+      expect(n7(e, 9), 21);
+      expect([ctl(e, ControlBit.en), ctl(e, ControlBit.dn), ctl(e, ControlBit.er)], [true, true, false]);
+      expect([e.memory.pos(r0), e.memory.len(r0)], [3, 3]);
+      // Runs once per rising edge.
+      setN7(e, 0, 100);
+      e.scan();
+      expect(n7(e, 9), 21);
+      e.inputImage = 0;
+      e.scan();
+      expect(ctl(e, ControlBit.en), isFalse);
+    });
+
+    test('AVE averages a float array into a float', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Instruction.create('AVE', 'F8:0', source: 'F8:8', offset: 'R6:0', preset: 2)]),
+      ]);
+      e.memory.writeFloat(const WordAddress(BitFile.float, 0), 1.0);
+      e.memory.writeFloat(const WordAddress(BitFile.float, 1), 2.0);
+      e.inputImage = 1;
+      e.scan();
+      expect(f8(e, 8), 1.5);
+    });
+
+    test('SRT sorts an integer array in place and sets EN, DN, POS and LEN', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Instruction.create('SRT', 'N7:0', offset: 'R6:0', preset: 3)]),
+      ]);
+      setN7(e, 0, 50);
+      setN7(e, 1, 10);
+      setN7(e, 2, 30);
+      setN7(e, 3, 5);
+      e.inputImage = 1;
+      e.scan();
+      expect([n7(e, 0), n7(e, 1), n7(e, 2), n7(e, 3)], [10, 30, 50, 5]);
+      expect([ctl(e, ControlBit.en), ctl(e, ControlBit.dn)], [true, true]);
+      expect([e.memory.pos(r0), e.memory.len(r0)], [3, 3]);
+    });
+
+    test('rejects a bad length or a file out of range', () {
+      expect(() => Instruction.create('COP', 'N7:0', source: 'N7:10', preset: 0), throwsRangeError);
+      expect(() => Instruction.create('COP', 'N7:0', source: 'N7:10', preset: 129), throwsRangeError);
+      expect(() => Instruction.create('FLL', 'N7:250', source: '1', preset: 10), throwsFormatException);
+      expect(() => Instruction.create('SRT', 'N7:0', offset: 'T4:0', preset: 2), throwsFormatException);
+    });
+  });
 }

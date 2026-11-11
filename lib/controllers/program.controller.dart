@@ -64,12 +64,14 @@ class ProgramController extends Notifier<ProgramState> {
       );
 
   /// Connects the thumbwheel to the digital input module in [slot].
-  void setThumbwheelSlot(int slot) =>
-      _mapIo((m) => m.copyWith(thumbwheelSlot: slot));
+  void setThumbwheelSlot(int? slot) => _mapIo(
+    (m) => m.copyWith(thumbwheelSlot: slot, clearThumbwheel: slot == null),
+  );
 
   /// Connects the 7-segment display to the digital output module in [slot].
-  void setSevenSegmentSlot(int slot) =>
-      _mapIo((m) => m.copyWith(sevenSegmentSlot: slot));
+  void setSevenSegmentSlot(int? slot) => _mapIo(
+    (m) => m.copyWith(sevenSegmentSlot: slot, clearSevenSegment: slot == null),
+  );
 
   /// Selects the rung at [index]; null clears the selection.
   void selectRung(int? index) => state = index == null

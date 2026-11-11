@@ -67,6 +67,19 @@ Map<String, Object?> _instructionToJson(Instruction i) {
       json['source'] = source.toString();
       json['offset'] = control.toString();
       json['preset'] = length;
+    case Cop(:final source, :final length):
+      json['source'] = source.toString();
+      json['preset'] = length;
+    case Fll(:final source, :final length):
+      json['source'] = source.toString();
+      json['preset'] = length;
+    case Ave(:final dest, :final control, :final length):
+      json['source'] = dest.toString();
+      json['offset'] = control.toString();
+      json['preset'] = length;
+    case Srt(:final control, :final length):
+      json['offset'] = control.toString();
+      json['preset'] = length;
     case Mov(:final source):
       json['source'] = source.toString();
     case Tod(:final source):

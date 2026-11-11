@@ -497,6 +497,7 @@ final ladderExamples = <LadderExample>[
           comment: 'TOD: converte N7:1 para BCD em O:0, que aciona o display de 7 segmentos (modo BCD).',
         ),
       ],
+      ioMapping: const IoMappingConfig(thumbwheelSlot: 0, sevenSegmentSlot: 0),
       symbols: const {
         'N7:0': 'VALOR_THUMBWHEEL',
         'N7:1': 'VALOR_MAIS_UM',

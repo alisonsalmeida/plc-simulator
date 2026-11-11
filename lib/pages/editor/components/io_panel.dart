@@ -99,14 +99,14 @@ class IoPanel extends ConsumerWidget {
           tabs,
           const SizedBox(height: 12),
           Text(
-            'Thumbwheel (I:${program.ioMapping.thumbwheelSlot})',
+            'Thumbwheel (${program.ioMapping.thumbwheelSlot != null ? 'I:${program.ioMapping.thumbwheelSlot}' : '⊘'})',
             style: title,
           ),
           const SizedBox(height: 8),
           const ThumbwheelTile(),
           const SizedBox(height: 16),
           Text(
-            'Display 7 segmentos (O:${program.ioMapping.sevenSegmentSlot})',
+            'Display 7 segmentos (${program.ioMapping.sevenSegmentSlot != null ? 'O:${program.ioMapping.sevenSegmentSlot}' : '⊘'})',
             style: title,
           ),
           const SizedBox(height: 8),

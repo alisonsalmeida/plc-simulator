@@ -132,13 +132,16 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   bool get _isWord => const {'MOV', 'MVM', 'CLR'}.contains(widget.mnemonic) || _isMath;
   bool get _isLimit => widget.mnemonic == 'LIM';
   bool get _isCompare => const {'EQU', 'NEQ', 'LES', 'LEQ', 'GRT', 'GEQ'}.contains(widget.mnemonic);
-  bool get _hasSource => _isArray || const {'MOV', 'MVM'}.contains(widget.mnemonic) || _isCompare || _isLimit || _isMath;
+  bool get _hasSource => (_isArray && widget.mnemonic != 'SRT') || const {'MOV', 'MVM'}.contains(widget.mnemonic) || _isCompare || _isLimit || _isMath;
   bool get _hasMask => _isShift || const {'SQO', 'SQC'}.contains(widget.mnemonic) || widget.mnemonic == 'MVM' || _isLimit || _isBinaryMath || widget.mnemonic == 'SCL';
-  bool get _hasOffset => _isSequencer || widget.mnemonic == 'SCL';
+  bool get _hasOffset => _isSequencer || _hasFileControl || widget.mnemonic == 'SCL';
   bool get _isShift => const {'BSL', 'BSR', 'FFL', 'FFU', 'LFL', 'LFU'}.contains(widget.mnemonic);
   bool get _isSequencer => const {'SQO', 'SQC', 'SQL'}.contains(widget.mnemonic);
+  bool get _isFileBatch => const {'COP', 'FLL', 'AVE', 'SRT'}.contains(widget.mnemonic);
+  // AVE and SRT keep their R6 control element in the offset field.
+  bool get _hasFileControl => const {'AVE', 'SRT'}.contains(widget.mnemonic);
   // Array instructions are validated as a whole by Instruction.create.
-  bool get _isArray => _isShift || _isSequencer;
+  bool get _isArray => _isShift || _isSequencer || _isFileBatch;
   bool get _isCounter => const {'CTU', 'CTD'}.contains(widget.mnemonic);
 
   String get _hint => switch (widget.mnemonic) {
@@ -147,7 +150,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         'RES' => 'T4:0 ou C5:0',
         'MOV' || 'MVM' || 'CLR' || 'ADD' || 'SUB' || 'MUL' || 'DIV' || 'NEG' || 'SQR' || 'SCL' || 'AND' || 'OR' || 'XOR' || 'NOT' || 'MOD' || 'XPY' || 'SWP' || 'TOD' || 'FRD' || 'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'N7:0',
         'LIM' => 'N7:0 ou 50',
-        'BSL' || 'BSR' || 'FFL' || 'FFU' || 'LFL' || 'LFU' || 'SQO' || 'SQC' || 'SQL' => 'B3:0',
+        'BSL' || 'BSR' || 'FFL' || 'FFU' || 'LFL' || 'LFU' || 'SQO' || 'SQC' || 'SQL' || 'COP' || 'FLL' || 'AVE' || 'SRT' => 'B3:0',
         'ONS' => 'B3:0/0',
         _ => 'I:0/0',
       };
@@ -246,8 +249,8 @@ class _InstructionDialogState extends State<_InstructionDialog> {
           labelText: switch (widget.mnemonic) {
             'LIM' => 'Limite inferior',
             'BSL' || 'BSR' => 'Bit de entrada',
-            'FFL' || 'LFL' || 'SQC' || 'SQL' => 'Origem',
-            'FFU' || 'LFU' || 'SQO' => 'Destino',
+            'FFL' || 'LFL' || 'SQC' || 'SQL' || 'COP' || 'FLL' => 'Origem',
+            'FFU' || 'LFU' || 'SQO' || 'AVE' => 'Destino',
             'ADD' || 'SUB' || 'MUL' || 'DIV' || 'AND' || 'OR' || 'XOR' || 'MOD' || 'XPY' => 'Origem A',
             'EQU' || 'NEQ' || 'LES' || 'LEQ' || 'GRT' || 'GEQ' => 'Origem B',
             _ => 'Origem',
@@ -275,8 +278,8 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   Widget _offsetField() => TextField(
         controller: _offset,
         decoration: InputDecoration(
-          labelText: _isSequencer ? 'Controle (R6:n)' : 'Deslocamento',
-          hintText: _isSequencer ? 'R6:0' : 'N7:0 ou 0',
+          labelText: _isSequencer || _hasFileControl ? 'Controle (R6:n)' : 'Deslocamento',
+          hintText: _isSequencer || _hasFileControl ? 'R6:0' : 'N7:0 ou 0',
           errorText: _offsetError,
         ),
         onSubmitted: (_) => _submit(),
@@ -286,7 +289,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         controller: _address,
         autofocus: _isCompare || !_hasSource,
         decoration: InputDecoration(
-          labelText: _isArray ? (_isSequencer ? 'Arquivo' : 'Vetor') : _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
+          labelText: _isArray ? (_isSequencer || _hasFileControl ? 'Arquivo' : (_isFileBatch ? 'Destino' : 'Vetor')) : _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
           hintText: _hint,
           errorText: _chassisError ?? _error,
         ),

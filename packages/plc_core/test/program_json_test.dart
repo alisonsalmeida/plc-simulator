@@ -86,6 +86,16 @@ void main() {
     expect(programFromJson(json).ioMapping, const IoMappingConfig());
   });
 
+  test('round-trips unassociated peripherals as null', () {
+    const program = Program([], ioMapping: IoMappingConfig(thumbwheelSlot: 3));
+    final json =
+        jsonDecode(jsonEncode(programToJson(program))) as Map<String, Object?>;
+    final back = programFromJson(json).ioMapping;
+    expect(back.thumbwheelSlot, 3);
+    expect(back.sevenSegmentSlot, isNull);
+    expect(back.copyWith(clearThumbwheel: true).thumbwheelSlot, isNull);
+  });
+
   test('round-trips every mnemonic, branches, symbols and descriptions', () {
     final json = programToJson(everyMnemonic());
     final text = jsonEncode(json);
@@ -156,5 +166,24 @@ void main() {
         throwsFormatException,
       );
     });
+  });
+
+  test('round-trips COP, FLL, AVE and SRT', () {
+    final program = Program([
+      Rung([
+        Instruction.create('COP', 'N7:10', source: '#N7:0', preset: 4),
+        Instruction.create('FLL', 'F8:0', source: '1.5', preset: 3),
+        Instruction.create('AVE', 'N7:0', source: 'N7:9', offset: 'R6:1', preset: 5),
+        Instruction.create('SRT', 'N7:20', offset: 'R6:2', preset: 6),
+      ]),
+    ]);
+    final text = jsonEncode(programToJson(program));
+    final back = programFromJson(jsonDecode(text) as Map<String, Object?>);
+    expect(jsonEncode(programToJson(back)), text);
+    final ins = back.rungs.single.elements;
+    expect(ins[0], isA<Cop>().having((c) => c.length, 'length', 4));
+    expect(ins[1], isA<Fll>().having((f) => f.source, 'source', const FloatConstant(1.5)));
+    expect(ins[2], isA<Ave>().having((a) => a.control.toString(), 'control', 'R6:1'));
+    expect(ins[3], isA<Srt>().having((s) => s.target, 'target', 'N7:20'));
   });
 }

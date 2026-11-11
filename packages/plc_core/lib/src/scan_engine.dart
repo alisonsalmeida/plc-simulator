@@ -141,6 +141,10 @@ class ScanEngine {
         StackLoadInstruction() => _stackLoad(e, power),
         StackUnloadInstruction() => _stackUnload(e, power),
         SequencerInstruction() => _sequencer(e, power),
+        Cop() => _copy(e, power),
+        Fll() => _fill(e, power),
+        Ave() => _average(e, power),
+        Srt() => _sort(e, power),
         WordInstruction() => _move(e, power),
         CompareInstruction() => power && e.holds(_value),
         Lim() => power && e.holds(_value),
@@ -563,6 +567,106 @@ class ScanEngine {
         memory.writeWord(s.word(pos), _value(source));
     }
     return power;
+  }
+
+  WordAddress _at(WordAddress base, int i) => WordAddress(base.file, base.element + i);
+
+  bool _copy(Cop c, bool power) {
+    if (!power) return false;
+    final floats = c.source.file == BitFile.float && c.dest.file == BitFile.float;
+    for (var i = 0; i < c.length; i++) {
+      if (floats) {
+        memory.writeFloat(_at(c.dest, i), memory.readFloat(_at(c.source, i)));
+      } else {
+        memory.writeWord(_at(c.dest, i), memory.readWord(_at(c.source, i)));
+      }
+    }
+    return true;
+  }
+
+  bool _fill(Fll f, bool power) {
+    if (!power) return false;
+    if (f.dest.file == BitFile.float) {
+      final val = switch (f.source) {
+        FloatConstant(:final value) => value,
+        Constant(:final value) => value.toDouble(),
+        final WordAddress a => a.file == BitFile.float ? memory.readFloat(a) : memory.readWord(a).toDouble(),
+      };
+      for (var i = 0; i < f.length; i++) {
+        memory.writeFloat(_at(f.dest, i), val);
+      }
+    } else {
+      final val = _value(f.source);
+      for (var i = 0; i < f.length; i++) {
+        memory.writeWord(_at(f.dest, i), val);
+      }
+    }
+    return true;
+  }
+
+  /// AVE / SRT on the rising edge of the rung (EN holds the previous state): runs once, then
+  /// sets DN and POS.
+  bool _average(Ave a, bool power) {
+    if (!_fileEdge(a, power)) return power;
+    final isFloat = a.file.file == BitFile.float;
+    if (a.dest.file == BitFile.float || isFloat) {
+      var sum = 0.0;
+      for (var i = 0; i < a.length; i++) {
+        final w = _at(a.file, i);
+        sum += isFloat ? memory.readFloat(w) : memory.readWord(w);
+      }
+      final avg = sum / a.length;
+      if (a.dest.file == BitFile.float) {
+        memory.writeFloat(a.dest, avg);
+      } else {
+        memory.writeWord(a.dest, avg.round());
+      }
+    } else {
+      var sum = 0;
+      for (var i = 0; i < a.length; i++) {
+        sum += memory.readWord(_at(a.file, i));
+      }
+      memory.writeWord(a.dest, (sum / a.length).round().toSigned(16));
+    }
+    _fileDone(a);
+    return true;
+  }
+
+  bool _sort(Srt s, bool power) {
+    if (!_fileEdge(s, power)) return power;
+    if (s.file.file == BitFile.float) {
+      final vals = [for (var i = 0; i < s.length; i++) memory.readFloat(_at(s.file, i))]..sort();
+      for (var i = 0; i < s.length; i++) {
+        memory.writeFloat(_at(s.file, i), vals[i]);
+      }
+    } else {
+      final vals = [for (var i = 0; i < s.length; i++) memory.readWord(_at(s.file, i))]..sort();
+      for (var i = 0; i < s.length; i++) {
+        memory.writeWord(_at(s.file, i), vals[i]);
+      }
+    }
+    _fileDone(s);
+    return true;
+  }
+
+  /// True when the file instruction must run now (rung rising edge); keeps EN, LEN and ER.
+  bool _fileEdge(FileControlInstruction f, bool power) {
+    final c = f.control;
+    final en = c.bitAt(ControlBit.en);
+    memory.setLen(c, f.length);
+    if (!power) {
+      memory.writeBit(en, false);
+      return false;
+    }
+    if (memory.readBit(en)) return false;
+    memory.writeBit(en, true);
+    memory.writeBit(c.bitAt(ControlBit.er), false);
+    return true;
+  }
+
+  void _fileDone(FileControlInstruction f) {
+    memory.setPos(f.control, f.length);
+    memory.writeBit(f.control.bitAt(ControlBit.dn), true);
   }
 
   bool _reset(ElementAddress el, bool power) {

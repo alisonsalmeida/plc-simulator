@@ -84,7 +84,12 @@ class RungActions {
       },
       preset: switch (ins) {
         TimerInstruction(:final preset) || CounterInstruction(:final preset) => preset,
-        ShiftInstruction(:final length) || SequencerInstruction(:final length) => length,
+        ShiftInstruction(:final length) ||
+        SequencerInstruction(:final length) ||
+        Cop(:final length) ||
+        Fll(:final length) ||
+        FileControlInstruction(:final length) =>
+          length,
         _ => 0,
       },
       source: switch (ins) {
@@ -98,6 +103,9 @@ class RungActions {
         StackUnloadInstruction(:final dest) => dest.format(),
         Sqo(:final dest) => dest.format(),
         Sqc(:final source) || Sql(:final source) => source.format(),
+        Cop(:final source) => source.format(),
+        Fll(:final source) => source.format(),
+        Ave(:final dest) => dest.format(),
         _ => '',
       },
       mask: switch (ins) {
@@ -110,7 +118,7 @@ class RungActions {
       },
       offset: switch (ins) {
         Scl(:final offset) => offset.format(),
-        SequencerInstruction(:final control) => control.toString(),
+        SequencerInstruction(:final control) || FileControlInstruction(:final control) => control.toString(),
         _ => '',
       },
       canDelete: true,

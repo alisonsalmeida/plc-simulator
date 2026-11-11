@@ -313,7 +313,7 @@ final class WordAddress extends Operand {
   ///
   /// With a [chassis], I/O addresses are also checked against the mounted modules.
   factory WordAddress.parse(String text, {ChassisConfig? chassis}) {
-    final s = text.trim().toUpperCase();
+    final s = (text.trim().startsWith('#') ? text.trim().substring(1) : text.trim()).toUpperCase();
     final plain = RegExp(r'^(S|B3|N7|F8):(\d+)$').firstMatch(s);
     final io = RegExp(r'^(O|I):(\d+)(?:\.(\d+))?$').firstMatch(s);
     final structured = RegExp(r'^(T4|C5):(\d+)\.(ACC|PRE)$').firstMatch(s) ??
@@ -388,6 +388,7 @@ abstract final class ControlBit {
   static const eu = 14;
   static const dn = 13;
   static const em = 12;
+  static const er = 11;
   static const ul = 10;
   static const fd = 8;
 }

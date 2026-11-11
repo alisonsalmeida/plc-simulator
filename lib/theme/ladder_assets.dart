@@ -59,6 +59,10 @@ abstract final class LadderAssets {
     'SQO': 'assets/ladder/sqo.svg',
     'SQC': 'assets/ladder/sqc.svg',
     'SQL': 'assets/ladder/sql.svg',
+    'COP': 'assets/ladder/cop.svg',
+    'FLL': 'assets/ladder/fll.svg',
+    'AVE': 'assets/ladder/ave.svg',
+    'SRT': 'assets/ladder/srt.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

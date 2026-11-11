@@ -10,7 +10,10 @@ import 'package:plc_simulator/core/examples.dart';
 import 'package:plc_simulator/pages/editor/components/io_panel.dart';
 import 'package:plc_simulator/pages/editor/components/seven_segment_tile.dart';
 
-Future<ProviderContainer> pumpPanel(WidgetTester tester) async {
+Future<ProviderContainer> pumpPanel(
+  WidgetTester tester, {
+  bool associate = true,
+}) async {
   tester.view.physicalSize = const Size(600, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -24,6 +27,12 @@ Future<ProviderContainer> pumpPanel(WidgetTester tester) async {
       child: const MaterialApp(home: Scaffold(body: IoPanel())),
     ),
   );
+  if (associate) {
+    container.read(programProvider.notifier)
+      ..setThumbwheelSlot(0)
+      ..setSevenSegmentSlot(0);
+    await tester.pump();
+  }
   return container;
 }
 
@@ -66,6 +75,60 @@ void main() {
     expect(find.byKey(const ValueKey('seven-segment-digit-0')), findsOneWidget);
     expect(find.text('I:0/12..15'), findsOneWidget);
     expect(find.text('O:0/12..15'), findsOneWidget);
+  });
+
+  testWidgets('unassociated peripherals show ⊘ and can be bound and unbound', (
+    tester,
+  ) async {
+    final c = await pumpPanel(tester, associate: false);
+    c.read(programProvider.notifier)
+      ..setChassisSlot(1, ModuleCatalog.ib16)
+      ..setChassisSlot(2, ModuleCatalog.ob16);
+    await tester.pump();
+    await openPeripherals(tester);
+    expect(find.text('Thumbwheel (⊘)'), findsOneWidget);
+    expect(find.text('Display 7 segmentos (⊘)'), findsOneWidget);
+    expect(find.text('⊘ Não Associado'), findsNWidgets(2));
+    expect(find.text('⊘'), findsNWidgets(4 + 4));
+    expect(segments(tester), List.filled(7, false));
+
+    // Unassociated dials write nothing.
+    await tester.tap(find.byKey(const ValueKey('thumbwheel-up-0')));
+    await tester.pump();
+    expect(c.read(runtimeProvider).inputs & 0xFFFF, 0);
+
+    // Bind the thumbwheel to slot 1: the digit value is driven.
+    await tester.tap(find.byKey(const ValueKey('thumbwheel-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slot 1').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Thumbwheel (I:1)'), findsOneWidget);
+    expect(find.text('I:1/0..3'), findsOneWidget);
+    final element = ioElement(BitFile.input, 1, null)!;
+    expect(c.read(runtimeProvider).data[BitFile.input]?[element], 1);
+
+    // Unbind: bits are cleared and the ⊘ symbol returns.
+    await tester.tap(find.byKey(const ValueKey('thumbwheel-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('⊘ Não Associado').last);
+    await tester.pumpAndSettle();
+    expect(c.read(programProvider).program.ioMapping.thumbwheelSlot, isNull);
+    expect(c.read(runtimeProvider).data[BitFile.input]?[element] ?? 0, 0);
+    expect(find.text('Thumbwheel (⊘)'), findsOneWidget);
+
+    // Bind and unbind the display.
+    await tester.tap(find.byKey(const ValueKey('seven-segment-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slot 2').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Display 7 segmentos (O:2)'), findsOneWidget);
+    expect(find.text('O:2/0..3'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('seven-segment-slot')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('⊘ Não Associado').last);
+    await tester.pumpAndSettle();
+    expect(c.read(programProvider).program.ioMapping.sevenSegmentSlot, isNull);
+    expect(find.text('Display 7 segmentos (⊘)'), findsOneWidget);
   });
 
   testWidgets('4-digit thumbwheel drives all 16 bits of I:0', (tester) async {

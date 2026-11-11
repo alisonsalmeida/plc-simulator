@@ -53,12 +53,14 @@ class _SevenSegmentTileState extends ConsumerState<SevenSegmentTile> {
       for (var s = 0; s < program.chassis.slots.length; s++)
         if (program.chassis.moduleAt(s).hasDigitalOutputs) s,
     ];
-    final element = ioElement(BitFile.output, slot, null)!;
+    final isAssociated = slot != null && slots.contains(slot);
+    final element = isAssociated ? ioElement(BitFile.output, slot, null) : null;
     final outputs = ref.watch(
       runtimeProvider.select(
-        (s) =>
-            s.data[BitFile.output]?[element] ??
-            (slot == program.ioMapping.digitalOutputSlot ? s.outputs : 0),
+        (s) => !isAssociated || element == null
+            ? 0
+            : s.data[BitFile.output]?[element] ??
+                  (slot == program.ioMapping.digitalOutputSlot ? s.outputs : 0),
       ),
     );
     final small = Theme.of(
@@ -78,18 +80,21 @@ class _SevenSegmentTileState extends ConsumerState<SevenSegmentTile> {
         children: [
           Row(
             children: [
-              DropdownButton<int>(
+              DropdownButton<int?>(
                 key: const ValueKey('seven-segment-slot'),
-                value: slots.contains(slot) ? slot : null,
+                value: isAssociated ? slot : null,
                 dropdownColor: const Color(0xFF222222),
                 style: small,
                 items: [
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('⊘ Não Associado'),
+                  ),
                   for (final s in slots)
-                    DropdownMenuItem(value: s, child: Text('Slot $s')),
+                    DropdownMenuItem<int?>(value: s, child: Text('Slot $s')),
                 ],
-                onChanged: (s) => ref
-                    .read(programProvider.notifier)
-                    .setSevenSegmentSlot(s ?? slot),
+                onChanged: (s) =>
+                    ref.read(programProvider.notifier).setSevenSegmentSlot(s),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -144,13 +149,17 @@ class _SevenSegmentTileState extends ConsumerState<SevenSegmentTile> {
                         key: ValueKey('seven-segment-digit-$i'),
                         size: const Size(40, 70),
                         painter: SevenSegmentPainter(
-                          sevenSegmentsFor(outputs >> (i * 4), _mode),
+                          isAssociated
+                              ? sevenSegmentsFor(outputs >> (i * 4), _mode)
+                              : List.filled(7, false),
                         ),
                       ),
                       Text(
-                        direct
-                            ? 'O:$slot/0..6'
-                            : 'O:$slot/${i * 4}..${i * 4 + 3}',
+                        isAssociated
+                            ? (direct
+                                  ? 'O:$slot/0..6'
+                                  : 'O:$slot/${i * 4}..${i * 4 + 3}')
+                            : '⊘',
                         style: small,
                       ),
                     ],
