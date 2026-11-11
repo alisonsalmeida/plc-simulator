@@ -119,10 +119,10 @@ class ElementEditController extends Notifier<void> {
 
   /// Applies [change] to a copy of the rung list and stores it as one program edit.
   void _editRungs(void Function(List<Rung> rungs) change) {
-    final program = ref.read(programProvider).program;
-    final rungs = [...program.rungs];
+    final state = ref.read(programProvider);
+    final rungs = [...state.rungs];
     change(rungs);
-    ref.read(programProvider.notifier).replaceProgram(program.copyWith(rungs: rungs));
+    ref.read(programProvider.notifier).replaceProgram(state.program.withRungs(state.activeRoutine, rungs));
   }
 }
 

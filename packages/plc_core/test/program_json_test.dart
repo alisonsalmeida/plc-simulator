@@ -186,4 +186,46 @@ void main() {
     expect(ins[2], isA<Ave>().having((a) => a.control.toString(), 'control', 'R6:1'));
     expect(ins[3], isA<Srt>().having((s) => s.target, 'target', 'N7:20'));
   });
+
+  test('round-trips the program flow instructions and the subroutines', () {
+    final program = Program(
+      [
+        Rung([Xic('I:0/0'), Jmp(5)]),
+        Rung([Mcr()]),
+        Rung([Mcr()]),
+        Rung([Jsr(3), Tnd()]),
+        Rung([Lbl(5)]),
+      ],
+      subroutines: {
+        3: [
+          Rung([Sbr(3)]),
+          Rung([Xic('I:0/1'), Ret()]),
+        ],
+        4: [
+          Rung([Sbr()]),
+        ],
+      },
+    );
+    final text = jsonEncode(programToJson(program));
+    final back = programFromJson(jsonDecode(text) as Map<String, Object?>);
+    expect(jsonEncode(programToJson(back)), text);
+    expect(back.rungs[0].elements[1], isA<Jmp>().having((j) => j.label, 'label', 5));
+    expect(back.rungs[3].elements, [isA<Jsr>(), isA<Tnd>()]);
+    expect(back.rungs[4].elements.single, isA<Lbl>().having((l) => l.target, 'target', 'Q2:5'));
+    expect(back.subroutines.keys, [3, 4]);
+    expect(back.subroutines[3]![0].elements.single, isA<Sbr>().having((s) => s.subroutine, 'sub', 3));
+    expect(back.subroutines[3]![1].elements.last, isA<Ret>());
+    expect(back.subroutines[4]![0].elements.single, isA<Sbr>().having((s) => s.subroutine, 'sub', 0));
+    expect(back.rungsFor(3), back.subroutines[3]);
+    expect(back.rungsFor(2), back.rungs);
+  });
+
+  test('parses labels and subroutine files, plain or prefixed', () {
+    expect(Instruction.create('JMP', 'Q2:12'), isA<Jmp>().having((j) => j.label, 'label', 12));
+    expect(Instruction.create('LBL', '7'), isA<Lbl>().having((l) => l.label, 'label', 7));
+    expect(Instruction.create('JSR', 'U:3'), isA<Jsr>().having((j) => j.subroutine, 'sub', 3));
+    expect(Instruction.create('JSR', '4'), isA<Jsr>().having((j) => j.subroutine, 'sub', 4));
+    expect(() => Instruction.create('JMP', '1000'), throwsFormatException);
+    expect(() => Instruction.create('JSR', 'U:1'), throwsFormatException);
+  });
 }

@@ -21,10 +21,16 @@ const overflowTrapBit = BitAddress(BitFile.status, 5, 0);
 /// Power flow of one scan: for each rung, the power out of every instruction in traversal
 /// order (left to right, branch paths top to bottom).
 class ScanTrace {
-  const ScanTrace(this.rungs);
+  const ScanTrace(this.rungs, {this.subroutines = const {}});
 
   final List<List<bool>> rungs;
+
+  /// Power flow of the last execution of each subroutine file called during the scan.
+  final Map<int, List<List<bool>>> subroutines;
 }
+
+/// Deepest nesting of JSR calls; deeper calls are ignored.
+const maxSubroutineDepth = 8;
 
 /// Executes a [Program] scan by scan: read inputs → rungs top to bottom → write outputs.
 class ScanEngine {
@@ -53,6 +59,15 @@ class ScanEngine {
 
   bool _firstScan = true;
 
+  // Program flow state of the scan in progress.
+  bool _mcrActive = false;
+  bool _mcrEnergized = true;
+  bool _halt = false;
+  bool _returning = false;
+  int? _jump;
+  int _depth = 0;
+  Map<int, List<List<bool>>> _subTraces = {};
+
   /// Time not yet turned into timer ticks, per timer, in microseconds.
   final Map<ElementAddress, int> _remainder = {};
 
@@ -61,6 +76,11 @@ class ScanEngine {
   void prescan() {
     for (final rung in program.rungs) {
       _prescan(rung.elements);
+    }
+    for (final rungs in program.subroutines.values) {
+      for (final rung in rungs) {
+        _prescan(rung.elements);
+      }
     }
     _firstScan = true;
   }
@@ -87,12 +107,14 @@ class ScanEngine {
     }
     _applyForces(BitFile.input);
     memory.writeBit(firstScanBit, _firstScan);
-    final rungs = <List<bool>>[];
-    for (final rung in program.rungs) {
-      final trace = <bool>[];
-      _series(rung.elements, true, trace, elapsed.inMicroseconds);
-      rungs.add(trace);
-    }
+    _mcrActive = false;
+    _mcrEnergized = true;
+    _halt = false;
+    _returning = false;
+    _jump = null;
+    _depth = 0;
+    _subTraces = {};
+    final rungs = _runRungs(program.rungs, elapsed.inMicroseconds, isSub: false);
     _applyForces(BitFile.output);
     outputImage = memory.word(BitFile.output, _digitalOutputElement);
     final outSlot = program.ioMapping.analogOutputSlot;
@@ -100,7 +122,69 @@ class ScanEngine {
       analogOutputImage[ch] = memory.word(BitFile.output, ioElement(BitFile.output, outSlot, ch) ?? (1 + ch));
     }
     _firstScan = false;
-    return ScanTrace(rungs);
+    return ScanTrace(rungs, subroutines: _subTraces);
+  }
+
+  /// Runs [rungs] top to bottom, honouring MCR zones, JMP/LBL (forward jumps only; a
+  /// jump to a missing or earlier label is ignored), TND and, in a subroutine, RET.
+  /// Returns one power trace per rung; rungs that did not run get an all-false trace.
+  List<List<bool>> _runRungs(List<Rung> rungs, int us, {required bool isSub}) {
+    final out = <List<bool>>[];
+    var i = 0;
+    while (i < rungs.length) {
+      final trace = <bool>[];
+      // Inside a de-energized MCR zone the rung starts without power.
+      _series(rungs[i].elements, !(_mcrActive && !_mcrEnergized), trace, us);
+      out.add(trace);
+      i++;
+      if (_halt) break;
+      if (_returning) {
+        if (isSub) break;
+        _returning = false;
+      }
+      final label = _jump;
+      if (label != null) {
+        _jump = null;
+        final target = rungs.indexWhere((r) => r.elements.any((e) => e is Lbl && e.label == label), i);
+        if (target > i) {
+          for (; i < target; i++) {
+            out.add(_offTrace(rungs[i].elements));
+          }
+        }
+      }
+    }
+    while (out.length < rungs.length) {
+      out.add(_offTrace(rungs[out.length].elements));
+    }
+    return out;
+  }
+
+  static List<bool> _offTrace(List<RungElement> elements) => [
+        for (final e in elements)
+          if (e is Branch) ...[for (final p in e.paths) ..._offTrace(p)] else false,
+      ];
+
+  void _call(int file, int us) {
+    final rungs = program.subroutines[file];
+    if (rungs == null || _depth >= maxSubroutineDepth) return;
+    final pendingJump = _jump;
+    _jump = null;
+    _depth++;
+    _subTraces[file] = _runRungs(rungs, us, isSub: true);
+    _depth--;
+    _returning = false;
+    _jump = pendingJump;
+  }
+
+  bool _mcr(bool power) {
+    if (_mcrActive) {
+      _mcrActive = false;
+      _mcrEnergized = true;
+    } else {
+      _mcrActive = true;
+      _mcrEnergized = power;
+    }
+    return power;
   }
 
   /// Sets ([value] non-null) or removes ([value] null) the force on [address]; a new force
@@ -141,6 +225,12 @@ class ScanEngine {
         StackLoadInstruction() => _stackLoad(e, power),
         StackUnloadInstruction() => _stackUnload(e, power),
         SequencerInstruction() => _sequencer(e, power),
+        Jmp(:final label) => _flag(power, () => _jump = label),
+        Lbl() || Sbr() => power,
+        Mcr() => _mcr(power),
+        Tnd() => _flag(power, () => _halt = true),
+        Ret() => _flag(power, () => _returning = true),
+        Jsr(:final subroutine) => _flag(power, () => _call(subroutine, us)),
         Cop() => _copy(e, power),
         Fll() => _fill(e, power),
         Ave() => _average(e, power),
@@ -151,6 +241,11 @@ class ScanEngine {
       };
       if (e is Instruction) trace.add(power);
     }
+    return power;
+  }
+
+  bool _flag(bool power, void Function() set) {
+    if (power) set();
     return power;
   }
 

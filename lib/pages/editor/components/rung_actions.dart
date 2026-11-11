@@ -75,7 +75,10 @@ class RungActions {
       context,
       mnemonic: ins.mnemonic,
       chassis: program.chassis,
-      address: ins.target,
+      address: switch (ins) {
+        Sbr(:final subroutine) when subroutine > 0 => 'U:$subroutine',
+        _ => ins.target,
+      },
       symbol: program.symbolOf(ins) ?? '',
       description: program.descriptionOf(ins) ?? '',
       timeBase: switch (ins) {

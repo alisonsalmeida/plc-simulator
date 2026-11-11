@@ -25,9 +25,33 @@ class ProgramController extends Notifier<ProgramState> {
   /// Replaces the program; the selection is dropped if its rung no longer exists.
   void replaceProgram(Program program) {
     final rung = state.selectedRung;
+    final routine = program.rungsFor(state.activeRoutine).isEmpty && state.activeRoutine != 2
+        ? 2
+        : state.activeRoutine;
     state = state.copyWith(
       program: program,
-      clearSelection: rung != null && rung >= program.rungs.length,
+      activeRoutine: routine,
+      clearSelection: rung != null && (routine != state.activeRoutine || rung >= program.rungsFor(routine).length),
+    );
+  }
+
+  /// Shows and edits program file [file] (2 = main, 3+ = subroutine) in the ladder view.
+  void setActiveRoutine(int file) {
+    if (file != 2 && !state.program.subroutines.containsKey(file)) return;
+    state = state.copyWith(activeRoutine: file, clearSelection: true);
+  }
+
+  /// Creates the next free subroutine file (starting at 3) with its SBR header rung and
+  /// makes it the active routine.
+  void addSubroutine() {
+    var file = 3;
+    while (state.program.subroutines.containsKey(file)) {
+      file++;
+    }
+    state = state.copyWith(
+      program: state.program.withSubroutine(file, [Rung([Sbr(file)])]),
+      activeRoutine: file,
+      clearSelection: true,
     );
   }
 

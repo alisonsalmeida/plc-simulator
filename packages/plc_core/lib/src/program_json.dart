@@ -12,6 +12,11 @@ Map<String, Object?> programToJson(Program program) => {
   'format': programJsonFormat,
   'version': programJsonVersion,
   'rungs': [for (final r in program.rungs) _rungToJson(r)],
+  if (program.subroutines.isNotEmpty)
+    'subroutines': {
+      for (final e in program.subroutines.entries)
+        '${e.key}': [for (final r in e.value) _rungToJson(r)],
+    },
   'symbols': Map<String, String>.of(program.symbols),
   'descriptions': Map<String, String>.of(program.descriptions),
   'chassis': program.chassis.toJson(),
@@ -80,6 +85,8 @@ Map<String, Object?> _instructionToJson(Instruction i) {
     case Srt(:final control, :final length):
       json['offset'] = control.toString();
       json['preset'] = length;
+    case Sbr(:final subroutine):
+      if (subroutine > 0) json['address'] = 'U:$subroutine';
     case Mov(:final source):
       json['source'] = source.toString();
     case Tod(:final source):
@@ -146,12 +153,35 @@ Program programFromJson(Map<String, Object?> json) {
       final Map<String, Object?> c => ChassisConfig.fromJson(c),
       _ => throw const FormatException('chassis must be an object'),
     },
+    subroutines: _subroutines(json['subroutines']),
     ioMapping: switch (json['ioMapping'] ?? json['peripherals']) {
       null => const IoMappingConfig(),
       final Map<String, Object?> m => IoMappingConfig.fromJson(m),
       _ => throw const FormatException('ioMapping must be an object'),
     },
   );
+}
+
+Map<int, List<Rung>> _subroutines(Object? v) {
+  if (v == null) return {};
+  if (v is! Map<String, Object?>) {
+    throw const FormatException('subroutines must be an object');
+  }
+  return {
+    for (final e in v.entries)
+      _subroutineFile(e.key): [
+        for (final (i, r) in _list(v, e.key, 'subroutines').indexed)
+          _rungFromJson(_map(r, 'subroutines.${e.key}[$i]'), 'subroutines.${e.key}[$i]'),
+      ],
+  };
+}
+
+int _subroutineFile(String key) {
+  final n = int.tryParse(key);
+  if (n == null || n < 3) {
+    throw FormatException('subroutines: invalid file "$key"');
+  }
+  return n;
 }
 
 Rung _rungFromJson(Map<String, Object?> json, String where) => Rung(

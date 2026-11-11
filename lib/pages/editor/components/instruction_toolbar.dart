@@ -20,8 +20,8 @@ class InstructionToolbar extends ConsumerStatefulWidget {
 }
 
 class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
-  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer', 'File/Misc'];
-  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer', 'File/Misc'};
+  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer', 'File/Misc', 'Program Flow'];
+  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO', 'Sequencer', 'File/Misc', 'Program Flow'};
   static const _tools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
     'XIC': 'XIC – Contato NA',
@@ -77,6 +77,17 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'FLL': 'FLL – Preencher arquivo',
     'AVE': 'AVE – Média de arquivo',
     'SRT': 'SRT – Ordenar arquivo',
+  };
+
+  static const _flowTools = {
+    LadderAssets.branch: 'BRANCH – Ramo paralelo',
+    'JSR': 'JSR – Desvio para sub-rotina',
+    'SBR': 'SBR – Cabeçalho de sub-rotina',
+    'RET': 'RET – Retorno de sub-rotina',
+    'JMP': 'JMP – Desvio para rótulo',
+    'LBL': 'LBL – Rótulo de desvio',
+    'MCR': 'MCR – Reset mestre de controle',
+    'TND': 'TND – Fim temporário',
   };
 
   static const _compareTools = {
@@ -142,6 +153,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
               'Shift/FIFO' => _shiftTools,
               'Sequencer' => _sequencerTools,
               'File/Misc' => _fileTools,
+              'Program Flow' => _flowTools,
               _ => _tools,
             }).entries)
               Tooltip(

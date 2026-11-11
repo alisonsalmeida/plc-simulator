@@ -63,6 +63,13 @@ abstract final class LadderAssets {
     'FLL': 'assets/ladder/fll.svg',
     'AVE': 'assets/ladder/ave.svg',
     'SRT': 'assets/ladder/srt.svg',
+    'JMP': 'assets/ladder/jmp.svg',
+    'LBL': 'assets/ladder/lbl.svg',
+    'MCR': 'assets/ladder/mcr.svg',
+    'TND': 'assets/ladder/tnd.svg',
+    'JSR': 'assets/ladder/jsr.svg',
+    'SBR': 'assets/ladder/sbr.svg',
+    'RET': 'assets/ladder/ret.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

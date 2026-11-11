@@ -28,8 +28,13 @@ class _LadderViewState extends ConsumerState<LadderView> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(programProvider);
-    final program = state.program;
-    final runtime = ref.watch(runtimeProvider);
+    // The view works on the active routine: its rungs stand in for the main rungs.
+    final program = state.program.copyWith(rungs: state.rungs);
+    final routine = state.activeRoutine;
+    final live = ref.watch(runtimeProvider);
+    final runtime = routine == 2
+        ? live
+        : live.copyWith(powerFlow: live.subroutineFlow[routine] ?? const []);
     final enabled = runtime.mode == RuntimeMode.stop;
     final edit = ref.read(rungEditProvider.notifier);
     return LayoutBuilder(

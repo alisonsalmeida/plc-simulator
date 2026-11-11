@@ -64,7 +64,7 @@ class BoxCell extends StatelessWidget {
         Ctd() => _bit(CounterBit.cd),
         StackUnloadInstruction() => _bit(ControlBit.eu),
         ShiftInstruction() || SequencerInstruction() || FileControlInstruction() => _bit(ControlBit.en),
-        WordInstruction() || Cop() || Fll() => online && powered,
+        WordInstruction() || Cop() || Fll() || Jmp() || Lbl() || Mcr() || Tnd() || Jsr() || Sbr() || Ret() => online && powered,
         final CompareInstruction c => online && c.holds(_read),
         final Lim l => online && l.holds(_read),
         _ => false,
@@ -122,13 +122,21 @@ class BoxCell extends StatelessWidget {
         Fll() => 'File Fill',
         Ave() => 'File Average',
         Srt() => 'File Sort',
+        Jmp() => 'Jump to Label',
+        Lbl() => 'Label',
+        Mcr() => 'Master Control Reset',
+        Tnd() => 'Temporary End',
+        Jsr() => 'Jump to Subroutine',
+        Sbr() => 'Subroutine',
+        Ret() => 'Return',
         _ => '',
       };
 
   @override
   Widget build(BuildContext context) {
     final ins = instruction;
-    final singleWire = ins is! BoxInstruction && ins is! ShiftInstruction && ins is! SequencerInstruction && ins is! FileControlInstruction;
+    final singleWire = ins is Jmp || ins is Lbl || ins is Mcr || ins is Tnd || ins is Jsr || ins is Sbr || ins is Ret ||
+        ins is! BoxInstruction && ins is! ShiftInstruction && ins is! SequencerInstruction && ins is! FileControlInstruction;
     final isTimer = ins is TimerInstruction;
     final rows = <(String, String)>[
       if (ins is WordInstruction) ..._wordRows(ins) else if (ins is CompareInstruction) ...[
@@ -136,6 +144,9 @@ class BoxCell extends StatelessWidget {
         ..._operandRows('Source B', ins.sourceB),
       ] else if (ins is ShiftInstruction) ..._shiftRows(ins)
       else if (ins is SequencerInstruction) ..._sequencerRows(ins)
+      else if (ins is Jmp || ins is Lbl) ...[('Label', ins.target)]
+      else if (ins is Jsr) ...[('Subroutine', 'U:${ins.subroutine}')]
+      else if (ins is Mcr || ins is Tnd || ins is Sbr || ins is Ret) ...const <(String, String)>[]
       else if (ins is Cop || ins is Fll || ins is FileControlInstruction) ..._fileRows(ins)
       else if (ins is Lim) ...[
         ..._operandRows('Low Lim', ins.low),

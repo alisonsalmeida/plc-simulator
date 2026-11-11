@@ -31,6 +31,14 @@ class ProjectTree extends ConsumerWidget {
     final name = ref
         .watch(programProvider.select((s) => s.example.name))
         .toUpperCase();
+    final subroutines = ref.watch(
+      programProvider.select((s) => s.program.subroutines.keys.toList()..sort()),
+    );
+    void openRoutine(int file) {
+      ref.read(programProvider.notifier).setActiveRoutine(file);
+      ref.read(mainViewProvider.notifier).select(MainView.ladder);
+    }
+
     void showFile(BitFile f) {
       ref.read(dataTableProvider.notifier)
         ..selectFile(f)
@@ -130,9 +138,21 @@ class ProjectTree extends ConsumerWidget {
                           _Leaf(
                             'LAD 2 - MAIN',
                             2,
-                            onTap: () => ref
-                                .read(mainViewProvider.notifier)
-                                .select(MainView.ladder),
+                            onTap: () => openRoutine(2),
+                          ),
+                          for (final file in subroutines)
+                            _Leaf(
+                              'LAD $file - SUBROUTINE',
+                              2,
+                              onTap: () => openRoutine(file),
+                            ),
+                          _Leaf(
+                            '+ Adicionar sub-rotina',
+                            2,
+                            onTap: () {
+                              ref.read(programProvider.notifier).addSubroutine();
+                              ref.read(mainViewProvider.notifier).select(MainView.ladder);
+                            },
                           ),
                         ],
                       ),

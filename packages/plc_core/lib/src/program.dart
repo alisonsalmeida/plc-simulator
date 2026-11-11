@@ -128,6 +128,13 @@ sealed class Instruction extends RungElement {
             control: ElementAddress.parse(offset, only: BitFile.control),
             length: preset,
           ),
+        'JMP' => Jmp(parseLabel(address)),
+        'LBL' => Lbl(parseLabel(address)),
+        'MCR' => Mcr(),
+        'TND' => Tnd(),
+        'JSR' => Jsr(parseSubroutine(address)),
+        'SBR' => Sbr(address.isEmpty || address.toUpperCase() == 'SBR' ? 0 : parseSubroutine(address)),
+        'RET' => Ret(),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -896,6 +903,123 @@ final class Srt extends FileControlInstruction {
   String get mnemonic => 'SRT';
 }
 
+/// Largest label number.
+const maxLabel = 999;
+
+/// Parses a label address: `Q2:n` or a plain `n`, 0..[maxLabel].
+int parseLabel(String text) {
+  final t = text.trim();
+  final digits = t.toUpperCase().startsWith('Q2:') ? t.substring(3) : t;
+  final n = int.tryParse(digits);
+  if (n == null || n < 0 || n > maxLabel) {
+    throw FormatException('Invalid label (expected Q2:n or n, 0..$maxLabel)', text);
+  }
+  return n;
+}
+
+/// Parses a subroutine file address: `U:n` or a plain `n`, 3..255 (file 2 is the main program).
+int parseSubroutine(String text) {
+  final t = text.trim();
+  final digits = t.toUpperCase().startsWith('U:') ? t.substring(2) : t;
+  final n = int.tryParse(digits);
+  if (n == null || n < 3 || n > 255) {
+    throw FormatException('Invalid subroutine file (expected U:n or n, 3..255)', text);
+  }
+  return n;
+}
+
+/// Program flow instructions. They have no data operands.
+/// Jump to label: when the rung is true, skips to the rung holding the matching [Lbl].
+final class Jmp extends Instruction {
+  Jmp(this.label) {
+    RangeError.checkValueInInterval(label, 0, maxLabel, 'label');
+  }
+
+  final int label;
+  @override
+  String get mnemonic => 'JMP';
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => 'Q2:$label';
+}
+
+/// Label: jump destination. Always passes power.
+final class Lbl extends Instruction {
+  Lbl(this.label) {
+    RangeError.checkValueInInterval(label, 0, maxLabel, 'label');
+  }
+
+  final int label;
+  @override
+  String get mnemonic => 'LBL';
+  @override
+  bool get isOutput => false;
+  @override
+  String get target => 'Q2:$label';
+}
+
+/// Master control reset: the first MCR starts a zone, the next one ends it. While the
+/// starting rung is false, the non-retentive outputs in the zone are off.
+final class Mcr extends Instruction {
+  Mcr();
+  @override
+  String get mnemonic => 'MCR';
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => 'MCR';
+}
+
+/// Temporary end: when true, ends the scan of the program here.
+final class Tnd extends Instruction {
+  Tnd();
+  @override
+  String get mnemonic => 'TND';
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => 'TND';
+}
+
+/// Jump to subroutine: when true, runs the rungs of subroutine file [subroutine].
+final class Jsr extends Instruction {
+  Jsr(this.subroutine);
+
+  final int subroutine;
+  @override
+  String get mnemonic => 'JSR';
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => 'U:$subroutine';
+}
+
+/// Subroutine header: first rung of a subroutine file. Always passes power.
+final class Sbr extends Instruction {
+  Sbr([this.subroutine = 0]);
+
+  /// Subroutine file number (0 = not specified).
+  final int subroutine;
+  @override
+  String get mnemonic => 'SBR';
+  @override
+  bool get isOutput => false;
+  @override
+  String get target => 'SBR';
+}
+
+/// Return: when true, ends the subroutine and goes back to the caller.
+final class Ret extends Instruction {
+  Ret();
+  @override
+  String get mnemonic => 'RET';
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => 'RET';
+}
+
 /// Parallel branch: power out is the OR of every path.
 final class Branch extends RungElement {
   const Branch(this.paths);
@@ -1008,9 +1132,26 @@ class Program {
     this.descriptions = const {},
     this.chassis = ChassisConfig.standard,
     this.ioMapping = const IoMappingConfig(),
+    this.subroutines = const {},
   });
 
   final List<Rung> rungs;
+
+  /// Subroutine files (U:3 and up) keyed by file number; file 2 is [rungs].
+  final Map<int, List<Rung>> subroutines;
+
+  /// Rungs of program file [file] (2 = main).
+  List<Rung> rungsFor(int file) => file == 2 ? rungs : (subroutines[file] ?? const []);
+
+  /// Replaces the rungs of program file [file] (2 = main).
+  Program withRungs(int file, List<Rung> rungs) =>
+      file == 2 ? copyWith(rungs: rungs) : withSubroutine(file, rungs);
+
+  Program withSubroutine(int file, List<Rung> rungs) =>
+      copyWith(subroutines: {...subroutines, file: rungs});
+
+  Program withoutSubroutine(int file) =>
+      copyWith(subroutines: {...subroutines}..remove(file));
 
   /// Slots the I/O panel, the analog modules and the peripherals are connected to.
   final IoMappingConfig ioMapping;
@@ -1030,6 +1171,7 @@ class Program {
     Map<String, String>? descriptions,
     ChassisConfig? chassis,
     IoMappingConfig? ioMapping,
+    Map<int, List<Rung>>? subroutines,
   }) =>
       Program(
         rungs ?? this.rungs,
@@ -1037,6 +1179,7 @@ class Program {
         descriptions: descriptions ?? this.descriptions,
         chassis: chassis ?? this.chassis,
         ioMapping: ioMapping ?? this.ioMapping,
+        subroutines: subroutines ?? this.subroutines,
       );
 
   String? symbolFor(BitAddress a) => symbols[a.toString()];

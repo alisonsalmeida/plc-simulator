@@ -11,18 +11,18 @@ class RungEditController extends Notifier<void> {
 
   /// Inserts an empty rung at [index] (0..length) and selects it.
   void insertRung(int index) {
-    _edit((p) => p.copyWith(rungs: [...p.rungs.take(index), const Rung([]), ...p.rungs.skip(index)]));
+    _editRungs((rungs) => [...rungs.take(index), const Rung([]), ...rungs.skip(index)]);
     ref.read(programProvider.notifier).selectRung(index);
   }
 
   /// Adds an empty rung after the selected rung, or at the end when none is selected.
   void addRung() {
     final state = ref.read(programProvider);
-    insertRung(state.selectedRung == null ? state.program.rungs.length : state.selectedRung! + 1);
+    insertRung(state.selectedRung == null ? state.rungs.length : state.selectedRung! + 1);
   }
 
   void deleteRung(int rung) {
-    _edit((p) => p.copyWith(rungs: [...p.rungs.take(rung), ...p.rungs.skip(rung + 1)]));
+    _editRungs((rungs) => [...rungs.take(rung), ...rungs.skip(rung + 1)]);
     ref.read(programProvider.notifier).selectRung(null);
   }
 
@@ -55,11 +55,19 @@ class RungEditController extends Notifier<void> {
     return result;
   }
 
-  void _setRung(int rung, Rung Function(Rung) change) => _edit((p) {
-        final rungs = [...p.rungs];
-        rungs[rung] = change(rungs[rung]);
-        return p.copyWith(rungs: rungs);
+  void _setRung(int rung, Rung Function(Rung) change) => _editRungs((rungs) {
+        final copy = [...rungs];
+        copy[rung] = change(copy[rung]);
+        return copy;
       });
+
+  /// Replaces the rungs of the active routine with the result of [change].
+  void _editRungs(List<Rung> Function(List<Rung>) change) {
+    final state = ref.read(programProvider);
+    ref.read(programProvider.notifier).replaceProgram(
+          state.program.withRungs(state.activeRoutine, change(state.rungs)),
+        );
+  }
 
   void _edit(Program Function(Program) change) {
     final controller = ref.read(programProvider.notifier);

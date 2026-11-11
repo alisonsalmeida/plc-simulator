@@ -13,6 +13,7 @@ class RuntimeState {
     this.analogInputs = const [0, 0, 0, 0],
     this.analogOutputs = const [0, 0],
     this.powerFlow = const [],
+    this.subroutineFlow = const {},
     this.scanCount = 0,
     this.data = const {},
     this.forces = const {},
@@ -31,6 +32,9 @@ class RuntimeState {
 
   /// Per rung, the power out of each instruction in traversal order; empty in STOP.
   final List<List<bool>> powerFlow;
+
+  /// Same as [powerFlow] for each subroutine file called in the last scan.
+  final Map<int, List<List<bool>>> subroutineFlow;
   final int scanCount;
 
   /// Data table words after the last scan, per file; empty before the first scan.
@@ -71,6 +75,7 @@ class RuntimeState {
     List<int>? analogInputs,
     List<int>? analogOutputs,
     List<List<bool>>? powerFlow,
+    Map<int, List<List<bool>>>? subroutineFlow,
     int? scanCount,
     Map<BitFile, List<int>>? data,
     Map<BitAddress, bool>? forces,
@@ -82,6 +87,7 @@ class RuntimeState {
         analogInputs: analogInputs ?? this.analogInputs,
         analogOutputs: analogOutputs ?? this.analogOutputs,
         powerFlow: powerFlow ?? this.powerFlow,
+        subroutineFlow: subroutineFlow ?? this.subroutineFlow,
         scanCount: scanCount ?? this.scanCount,
         data: data ?? this.data,
         forces: forces ?? this.forces,

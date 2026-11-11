@@ -10,7 +10,7 @@
 - [x] Unassociated peripheral state: show ⊘ ("⊘ Não Associado" in slot dropdown, "⊘" under dials/digits, unbind I/O)
 - [x] Free hardware I/O mapping: allow mapping the 16 digital inputs bank to slot N, digital outputs bank to slot Y, analog inputs/outputs to dedicated slots, and persist mapping in project save
 - [x] Set 3: File/Array batch operations: COP (Copy File), FLL (Fill File), AVE (Average File), SRT (Sort File)
-- [ ] Set 4: Program flow and subroutines: JSR (Jump Subroutine), SBR (Subroutine Header), RET (Return), JMP, LBL, MCR (Master Control Reset), TND (Temporary End)
+- [x] Set 4: Program flow and subroutines: JSR (Jump Subroutine), SBR (Subroutine Header), RET (Return), JMP, LBL, MCR (Master Control Reset), TND (Temporary End)
 - [ ] Process simulation window: Bottle Filling Line (animated 2D simulation with conveyor, fill nozzle, capper, reject piston, BSL/BSR shift registers and R6 control file)
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 

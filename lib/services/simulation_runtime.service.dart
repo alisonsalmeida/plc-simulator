@@ -83,6 +83,7 @@ class SimulationRuntimeService implements IRuntimeService {
       outputs: 0,
       analogOutputs: List.filled(analogOutputChannels, 0),
       powerFlow: const [],
+      subroutineFlow: const {},
     ));
   }
 
@@ -214,6 +215,7 @@ class SimulationRuntimeService implements IRuntimeService {
       outputs: _engine!.outputImage,
       analogOutputs: [..._engine!.analogOutputImage],
       powerFlow: trace.rungs,
+      subroutineFlow: trace.subroutines,
       scanCount: _state.scanCount + 1,
       data: _snapshot(),
     ));

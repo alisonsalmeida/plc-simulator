@@ -226,4 +226,122 @@ void main() {
       expect(() => Instruction.create('SRT', 'N7:0', offset: 'T4:0', preset: 2), throwsFormatException);
     });
   });
+
+  group('program flow', () {
+    test('JMP skips the rungs up to its LBL only when true', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Jmp(1)]),
+        Rung([Xic('I:0/1'), Ote('O:0/0')]),
+        Rung([Lbl(1), Xic('I:0/1'), Ote('O:0/1')]),
+      ]);
+      e.inputImage = 3;
+      e.scan();
+      expect([out(e, 0), out(e, 1)], [false, true]);
+      e.inputImage = 2;
+      e.scan();
+      expect([out(e, 0), out(e, 1)], [true, true]);
+    });
+
+    test('a jump to a missing label is ignored', () {
+      final e = engineFor([
+        Rung([Jmp(9)]),
+        Rung([Ote('O:0/0')]),
+      ]);
+      e.scan();
+      expect(out(e, 0), isTrue);
+    });
+
+    test('MCR de-energizes the zone when false and closing it restores execution', () {
+      final e = engineFor([
+        Rung([Xic('I:0/0'), Mcr()]),
+        Rung([Xic('I:0/1'), Ote('O:0/0')]),
+        Rung([Xic('I:0/1'), Otl('O:0/1')]),
+        Rung([Mcr()]),
+        Rung([Xic('I:0/1'), Ote('O:0/2')]),
+      ]);
+      e.inputImage = 2;
+      e.scan();
+      expect([out(e, 0), out(e, 1), out(e, 2)], [false, false, true]);
+      e.inputImage = 3;
+      e.scan();
+      expect([out(e, 0), out(e, 1), out(e, 2)], [true, true, true]);
+      e.inputImage = 0;
+      e.scan();
+      expect(out(e, 0), isFalse);
+      e.inputImage = 2;
+      e.scan();
+      expect([out(e, 0), out(e, 1)], [false, true], reason: 'OTL is retentive');
+    });
+
+    test('TND ends the scan when true', () {
+      final e = engineFor([
+        Rung([Ote('O:0/0')]),
+        Rung([Xic('I:0/0'), Tnd()]),
+        Rung([Ote('O:0/1')]),
+      ]);
+      e.scan();
+      expect([out(e, 0), out(e, 1)], [true, true]);
+      final f = ScanEngine(Program([
+        Rung([Ote('O:0/0')]),
+        Rung([Tnd()]),
+        Rung([Ote('O:0/1')]),
+      ]))
+        ..prescan();
+      final trace = f.scan();
+      expect(out(f, 0), isTrue);
+      expect(out(f, 1), isFalse, reason: 'rungs after TND did not run');
+      expect(trace.rungs.length, 3);
+    });
+
+    test('JSR runs the subroutine and RET returns early', () {
+      final program = Program(
+        [
+          Rung([Xic('I:0/0'), Jsr(3)]),
+          Rung([Ote('O:0/3')]),
+        ],
+        subroutines: {
+          3: [
+            Rung([Sbr(3)]),
+            Rung([Ote('O:0/0')]),
+            Rung([Xic('I:0/1'), Ret()]),
+            Rung([Ote('O:0/1')]),
+          ],
+        },
+      );
+      final e = ScanEngine(program)..prescan();
+      e.scan();
+      expect([out(e, 0), out(e, 3)], [false, true]);
+      e.inputImage = 1;
+      final trace = e.scan();
+      expect([out(e, 0), out(e, 1), out(e, 3)], [true, true, true]);
+      expect(trace.subroutines[3]!.length, 4);
+      e.inputImage = 3;
+      e.scan();
+      expect([out(e, 0), out(e, 1)], [true, true], reason: 'OTE not re-run after RET, bit kept');
+      e.memory.writeBit(const BitAddress(BitFile.output, 0, 1), false);
+      e.scan();
+      expect(out(e, 1), isFalse);
+    });
+
+    test('nested JSR calls work and recursion is bounded', () {
+      final program = Program(
+        [
+          Rung([Jsr(3)]),
+        ],
+        subroutines: {
+          3: [
+            Rung([Ote('O:0/0')]),
+            Rung([Jsr(4)]),
+          ],
+          4: [
+            Rung([Ote('O:0/1')]),
+            Rung([Jsr(4)]),
+          ],
+        },
+      );
+      final e = ScanEngine(program)..prescan();
+      e.scan();
+      expect([out(e, 0), out(e, 1)], [true, true]);
+    });
+  });
 }

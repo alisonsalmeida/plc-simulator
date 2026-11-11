@@ -142,6 +142,9 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   bool get _hasFileControl => const {'AVE', 'SRT'}.contains(widget.mnemonic);
   // Array instructions are validated as a whole by Instruction.create.
   bool get _isArray => _isShift || _isSequencer || _isFileBatch;
+  // Program flow: JMP, LBL and JSR take one address; MCR, TND, RET and SBR take none.
+  bool get _isFlow => const {'JMP', 'LBL', 'JSR', 'MCR', 'TND', 'RET', 'SBR'}.contains(widget.mnemonic);
+  bool get _hasNoOperand => const {'MCR', 'TND', 'RET', 'SBR'}.contains(widget.mnemonic);
   bool get _isCounter => const {'CTU', 'CTD'}.contains(widget.mnemonic);
 
   String get _hint => switch (widget.mnemonic) {
@@ -152,6 +155,8 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         'LIM' => 'N7:0 ou 50',
         'BSL' || 'BSR' || 'FFL' || 'FFU' || 'LFL' || 'LFU' || 'SQO' || 'SQC' || 'SQL' || 'COP' || 'FLL' || 'AVE' || 'SRT' => 'B3:0',
         'ONS' => 'B3:0/0',
+        'JMP' || 'LBL' => 'Q2:0 ou 0',
+        'JSR' => 'U:3 ou 3',
         _ => 'I:0/0',
       };
 
@@ -174,9 +179,9 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         ? (preset != null && preset >= 1 && preset <= 128)
         : !(_isTimer || _isCounter) || (preset != null && preset >= 0 && preset <= maxPreset);
     String? address;
-    var addressText = _address.text.trim();
+    var addressText = _hasNoOperand ? widget.mnemonic : _address.text.trim();
     // Bit instructions: a word or analog channel without a bit (I:1.0, N7:0) means bit 0.
-    final isBit = !_isArray && !_isWord && !_isCompare && !_isLimit && !_isTimer && !_isCounter && widget.mnemonic != 'RES';
+    final isBit = !_isFlow && !_isArray && !_isWord && !_isCompare && !_isLimit && !_isTimer && !_isCounter && widget.mnemonic != 'RES';
     if (isBit && addressText.isNotEmpty && !addressText.contains('/')) addressText = '$addressText/0';
     try {
       address = _isArray
@@ -289,7 +294,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         controller: _address,
         autofocus: _isCompare || !_hasSource,
         decoration: InputDecoration(
-          labelText: _isArray ? (_isSequencer || _hasFileControl ? 'Arquivo' : (_isFileBatch ? 'Destino' : 'Vetor')) : _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
+          labelText: _isFlow ? (widget.mnemonic == 'JSR' ? 'Arquivo de sub-rotina (U:n ou n)' : 'Rótulo (Q2:n ou n)') : _isArray ? (_isSequencer || _hasFileControl ? 'Arquivo' : (_isFileBatch ? 'Destino' : 'Vetor')) : _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
           hintText: _hint,
           errorText: _chassisError ?? _error,
         ),
@@ -308,7 +313,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
             if (_hasSource) _sourceField(),
             if (_hasMask) _maskField(),
             if (_hasOffset) _offsetField(),
-            _addressField(),
+            if (!_hasNoOperand) _addressField(),
           ],
           if (_isTimer)
             DropdownButtonFormField<TimeBase>(
@@ -327,17 +332,21 @@ class _InstructionDialogState extends State<_InstructionDialog> {
               decoration: InputDecoration(labelText: _isArray ? 'Comprimento' : 'Preset', errorText: _presetError),
               onSubmitted: (_) => _submit(),
             ),
-          TextField(
-            controller: _symbol,
-            decoration: const InputDecoration(labelText: 'Símbolo (opcional)'),
-            onSubmitted: (_) => _submit(),
-          ),
-          TextField(
-            controller: _description,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
-          ),
+          if (_hasNoOperand)
+            const Text('Esta instrução não tem operandos.')
+          else ...[
+            TextField(
+              controller: _symbol,
+              decoration: const InputDecoration(labelText: 'Símbolo (opcional)'),
+              onSubmitted: (_) => _submit(),
+            ),
+            TextField(
+              controller: _description,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
+            ),
+          ],
         ]))),
         actions: [
           if (widget.canDelete)
