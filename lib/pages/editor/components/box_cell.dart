@@ -47,7 +47,11 @@ class BoxCell extends StatelessWidget {
   final bool lit;
   final VoidCallback? onTap;
 
-  ElementAddress get _element => (instruction as BoxInstruction).element;
+  ElementAddress get _element => switch (instruction) {
+        final ShiftInstruction s => s.control,
+        final BoxInstruction b => b.element,
+        _ => throw StateError('Not a box instruction'),
+      };
 
   bool _bit(int bit) => online && runtime.bit(_element.bitAt(bit));
 
@@ -56,6 +60,8 @@ class BoxCell extends StatelessWidget {
         TimerInstruction() => _bit(TimerBit.en),
         Ctu() => _bit(CounterBit.cu),
         Ctd() => _bit(CounterBit.cd),
+        StackUnloadInstruction() => _bit(ControlBit.eu),
+        ShiftInstruction() => _bit(ControlBit.en),
         WordInstruction() => online && powered,
         final CompareInstruction c => online && c.holds(_read),
         final Lim l => online && l.holds(_read),
@@ -101,19 +107,26 @@ class BoxCell extends StatelessWidget {
         Swp() => 'Swap',
         Tod() => 'Convert to BCD',
         Frd() => 'Convert from BCD',
+        Bsl() => 'Bit Shift Left',
+        Bsr() => 'Bit Shift Right',
+        Ffl() => 'FIFO Load',
+        Ffu() => 'FIFO Unload',
+        Lfl() => 'LIFO Load',
+        Lfu() => 'LIFO Unload',
         _ => '',
       };
 
   @override
   Widget build(BuildContext context) {
     final ins = instruction;
-    final singleWire = ins is! BoxInstruction;
+    final singleWire = ins is! BoxInstruction && ins is! ShiftInstruction;
     final isTimer = ins is TimerInstruction;
     final rows = <(String, String)>[
       if (ins is WordInstruction) ..._wordRows(ins) else if (ins is CompareInstruction) ...[
         ..._operandRows('Source A', ins.sourceA),
         ..._operandRows('Source B', ins.sourceB),
-      ] else if (ins is Lim) ...[
+      ] else if (ins is ShiftInstruction) ..._shiftRows(ins)
+      else if (ins is Lim) ...[
         ..._operandRows('Low Lim', ins.low),
         ..._operandRows('Test', ins.test),
         ..._operandRows('High Lim', ins.high),
@@ -128,8 +141,16 @@ class BoxCell extends StatelessWidget {
       ],
     ];
     final height = (2 + rows.length) * _rowH;
-    final (firstStub, secondStub) = isTimer ? ('EN', 'DN') : (ins is Ctd ? 'CD' : 'CU', 'DN');
-    final firstBit = isTimer ? TimerBit.en : (ins is Ctd ? CounterBit.cd : CounterBit.cu);
+    final (firstStub, secondStub) = switch (ins) {
+      StackUnloadInstruction() => ('EU', 'DN'),
+      ShiftInstruction() => ('EN', 'DN'),
+      _ => isTimer ? ('EN', 'DN') : (ins is Ctd ? 'CD' : 'CU', 'DN'),
+    };
+    final firstBit = switch (ins) {
+      StackUnloadInstruction() => ControlBit.eu,
+      ShiftInstruction() => ControlBit.en,
+      _ => isTimer ? TimerBit.en : (ins is Ctd ? CounterBit.cd : CounterBit.cu),
+    };
     final secondBit = isTimer ? TimerBit.dn : CounterBit.dn;
     Widget band(String text, Color color) => Container(
           width: 100,
@@ -197,6 +218,36 @@ class BoxCell extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Rows of a shift register or stack instruction: operands, control, length and position.
+  List<(String, String)> _shiftRows(ShiftInstruction ins) {
+    final stack = switch (ins) {
+      Ffl() || Ffu() => 'FIFO',
+      _ => 'LIFO',
+    };
+    return switch (ins) {
+      BitShiftInstruction(:final bit) => [
+          ('File', ins.array.toString()),
+          ('Control', ins.control.toString()),
+          ('Bit Addr', bit.toString()),
+          ('Length', '${ins.length}'),
+        ],
+      StackLoadInstruction(:final source) => [
+          ..._operandRows('Source', source),
+          (stack, ins.array.toString()),
+          ('Control', ins.control.toString()),
+          ('Length', '${ins.length}'),
+          ('Position', '${online ? runtime.acc(ins.control) : 0}<'),
+        ],
+      StackUnloadInstruction(:final dest) => [
+          (stack, ins.array.toString()),
+          ..._operandRows('Dest', dest),
+          ('Control', ins.control.toString()),
+          ('Length', '${ins.length}'),
+          ('Position', '${online ? runtime.acc(ins.control) : 0}<'),
+        ],
+    };
   }
 
   /// Operand rows of a word instruction: an address is followed by its live value

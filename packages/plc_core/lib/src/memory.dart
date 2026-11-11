@@ -56,6 +56,13 @@ class PlcMemory {
   int pre(ElementAddress e) => toInt16(_files[e.file]![e.presetIndex]);
   int acc(ElementAddress e) => toInt16(_files[e.file]![e.accumIndex]);
 
+  /// Length and position of a control element (`R6:n`, signed 16-bit).
+  int len(ElementAddress e) => toInt16(_files[e.file]![e.lenIndex]);
+  int pos(ElementAddress e) => toInt16(_files[e.file]![e.posIndex]);
+
+  void setLen(ElementAddress e, int val) => _files[e.file]![e.lenIndex] = val;
+  void setPos(ElementAddress e, int val) => _files[e.file]![e.posIndex] = val;
+
   void setPre(ElementAddress e, int value) => _files[e.file]![e.presetIndex] = value;
   void setAcc(ElementAddress e, int value) => _files[e.file]![e.accumIndex] = value;
 }

@@ -50,6 +50,12 @@ abstract final class LadderAssets {
     'TOD': 'assets/ladder/tod.svg',
     'FRD': 'assets/ladder/frd.svg',
     'ONS': 'assets/ladder/ons.svg',
+    'BSL': 'assets/ladder/bsl.svg',
+    'BSR': 'assets/ladder/bsr.svg',
+    'FFL': 'assets/ladder/ffl.svg',
+    'FFU': 'assets/ladder/ffu.svg',
+    'LFL': 'assets/ladder/lfl.svg',
+    'LFU': 'assets/ladder/lfu.svg',
     branch: 'assets/ladder/branch.svg',
     rung: 'assets/ladder/rung.svg',
   };

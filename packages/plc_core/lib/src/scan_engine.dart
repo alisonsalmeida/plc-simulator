@@ -129,6 +129,9 @@ class ScanEngine {
         TimerInstruction() => _timer(e, power, us),
         CounterInstruction() => _counter(e, power),
         Res(:final element) => _reset(element, power),
+        BitShiftInstruction() => _bitShift(e, power),
+        StackLoadInstruction() => _stackLoad(e, power),
+        StackUnloadInstruction() => _stackUnload(e, power),
         WordInstruction() => _move(e, power),
         CompareInstruction() => power && e.holds(_value),
         Lim() => power && e.holds(_value),
@@ -434,6 +437,91 @@ class ScanEngine {
   static int _roundedDiv(int n, int d) {
     final q = (2 * n.abs() + d.abs()) ~/ (2 * d.abs());
     return (n < 0) != (d < 0) ? -q : q;
+  }
+
+  /// Bit `i` of the array of [s] (bit 0 is the least significant bit of the first word).
+  BitAddress _arrayBit(ShiftInstruction s, int i) =>
+      BitAddress(s.array.file, s.array.element + i ~/ 16, i % 16);
+
+  /// BSL / BSR on the rising edge of the rung (EN holds the previous state). The bit that
+  /// leaves the array goes to UL.
+  bool _bitShift(BitShiftInstruction s, bool power) {
+    final c = s.control;
+    final en = c.bitAt(ControlBit.en);
+    final dn = c.bitAt(ControlBit.dn);
+    memory.setLen(c, s.length);
+    if (!power) {
+      memory.writeBit(en, false);
+      memory.writeBit(dn, false);
+      return power;
+    }
+    if (memory.readBit(en)) return power;
+    final left = s is Bsl;
+    final last = s.length - 1;
+    memory.writeBit(c.bitAt(ControlBit.ul), memory.readBit(_arrayBit(s, left ? last : 0)));
+    if (left) {
+      for (var i = last; i > 0; i--) {
+        memory.writeBit(_arrayBit(s, i), memory.readBit(_arrayBit(s, i - 1)));
+      }
+    } else {
+      for (var i = 0; i < last; i++) {
+        memory.writeBit(_arrayBit(s, i), memory.readBit(_arrayBit(s, i + 1)));
+      }
+    }
+    memory.writeBit(_arrayBit(s, left ? 0 : last), memory.readBit(s.bit));
+    memory.writeBit(en, true);
+    memory.writeBit(dn, true);
+    return power;
+  }
+
+  /// FFL / LFL on the rising edge of the rung (EN holds the previous state): stores the
+  /// source at POS; DN when the stack is full.
+  bool _stackLoad(StackLoadInstruction s, bool power) {
+    final c = s.control;
+    final en = c.bitAt(ControlBit.en);
+    memory.setLen(c, s.length);
+    if (!power) {
+      memory.writeBit(en, false);
+      return power;
+    }
+    if (memory.readBit(en)) return power;
+    memory.writeBit(en, true);
+    final pos = memory.pos(c);
+    if (pos < s.length) {
+      memory.writeWord(s.word(pos), _value(s.source));
+      memory.setPos(c, pos + 1);
+      memory.writeBit(c.bitAt(ControlBit.em), false);
+      if (pos + 1 >= s.length) memory.writeBit(c.bitAt(ControlBit.dn), true);
+    }
+    return power;
+  }
+
+  /// FFU / LFU on the rising edge of the rung (EU holds the previous state): moves a word to
+  /// the destination and decrements POS; EM when the stack is empty.
+  bool _stackUnload(StackUnloadInstruction s, bool power) {
+    final c = s.control;
+    final eu = c.bitAt(ControlBit.eu);
+    memory.setLen(c, s.length);
+    if (!power) {
+      memory.writeBit(eu, false);
+      return power;
+    }
+    if (memory.readBit(eu)) return power;
+    memory.writeBit(eu, true);
+    final pos = memory.pos(c);
+    if (pos > 0) {
+      final fifo = s is Ffu;
+      memory.writeWord(s.dest, memory.readWord(s.word(fifo ? 0 : pos - 1)));
+      if (fifo) {
+        for (var i = 1; i < pos; i++) {
+          memory.writeWord(s.word(i - 1), memory.readWord(s.word(i)));
+        }
+      }
+      memory.setPos(c, pos - 1);
+      memory.writeBit(c.bitAt(ControlBit.dn), false);
+      if (pos - 1 == 0) memory.writeBit(c.bitAt(ControlBit.em), true);
+    }
+    return power;
   }
 
   bool _reset(ElementAddress el, bool power) {

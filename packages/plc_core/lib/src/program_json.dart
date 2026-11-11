@@ -38,6 +38,18 @@ Map<String, Object?> _instructionToJson(Instruction i) {
       json['preset'] = preset;
     case CounterInstruction(:final preset):
       json['preset'] = preset;
+    case BitShiftInstruction(:final bit, :final control, :final length):
+      json['source'] = bit.toString();
+      json['mask'] = control.toString();
+      json['preset'] = length;
+    case StackLoadInstruction(:final source, :final control, :final length):
+      json['source'] = source.toString();
+      json['mask'] = control.toString();
+      json['preset'] = length;
+    case StackUnloadInstruction(:final dest, :final control, :final length):
+      json['source'] = dest.toString();
+      json['mask'] = control.toString();
+      json['preset'] = length;
     case Mov(:final source):
       json['source'] = source.toString();
     case Tod(:final source):

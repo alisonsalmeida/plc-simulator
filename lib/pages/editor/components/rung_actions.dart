@@ -83,6 +83,7 @@ class RungActions {
       },
       preset: switch (ins) {
         TimerInstruction(:final preset) || CounterInstruction(:final preset) => preset,
+        ShiftInstruction(:final length) => length,
         _ => 0,
       },
       source: switch (ins) {
@@ -91,11 +92,15 @@ class RungActions {
         UnaryMathInstruction(:final source) || Scl(:final source) || Not(:final source) => source.format(),
         CompareInstruction(:final sourceB) => sourceB.format(),
         Lim(:final low) => low.format(),
+        BitShiftInstruction(:final bit) => bit.toString(),
+        StackLoadInstruction(:final source) => source.format(),
+        StackUnloadInstruction(:final dest) => dest.format(),
         _ => '',
       },
       mask: switch (ins) {
         Mvm(:final mask) => mask.format(hex: true),
         Lim(:final high) => high.format(),
+        ShiftInstruction(:final control) => control.toString(),
         BinaryMathInstruction(:final sourceB) || BinaryLogicInstruction(:final sourceB) => sourceB.format(),
         Scl(:final rate) => rate.format(),
         _ => '',

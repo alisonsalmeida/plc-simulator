@@ -20,8 +20,8 @@ class InstructionToolbar extends ConsumerStatefulWidget {
 }
 
 class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
-  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical'];
-  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical'};
+  static const _tabs = ['User', 'Bit', 'Timer/Counter', 'Input/Output', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO'];
+  static const _enabledTabs = {'User', 'Bit', 'Timer/Counter', 'Compare', 'Compute/Math', 'Move/Logical', 'Shift/FIFO'};
   static const _tools = {
     LadderAssets.branch: 'BRANCH – Ramo paralelo',
     'XIC': 'XIC – Contato NA',
@@ -52,6 +52,16 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
     'SWP': 'SWP – Trocar bytes',
     'TOD': 'TOD – Converter para BCD',
     'FRD': 'FRD – Converter de BCD',
+  };
+
+  static const _shiftTools = {
+    LadderAssets.branch: 'BRANCH – Ramo paralelo',
+    'BSL': 'BSL – Deslocar bits à esquerda',
+    'BSR': 'BSR – Deslocar bits à direita',
+    'FFL': 'FFL – Carregar fila FIFO',
+    'FFU': 'FFU – Descarregar fila FIFO',
+    'LFL': 'LFL – Carregar pilha LIFO',
+    'LFU': 'LFU – Descarregar pilha LIFO',
   };
 
   static const _compareTools = {
@@ -114,6 +124,7 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
               'Compare' => _compareTools,
               'Compute/Math' => _mathTools,
               'Move/Logical' => _moveTools,
+              'Shift/FIFO' => _shiftTools,
               _ => _tools,
             }).entries)
               Tooltip(
@@ -195,7 +206,7 @@ class _TabButton extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
         onTap: enabled ? onTap : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: selected ? Colors.white : const Color(0xFFD4D0C8),
             border: Border.all(color: Colors.black38),

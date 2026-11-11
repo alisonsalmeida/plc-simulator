@@ -30,6 +30,7 @@ class _DataTableWindowState extends ConsumerState<DataTableWindow> {
     BitFile.bit: 'BINARY',
     BitFile.timer: 'TIMER',
     BitFile.counter: 'COUNTER',
+    BitFile.control: 'CONTROL',
     BitFile.integer: 'INTEGER',
     BitFile.float: 'FLOAT',
   };
@@ -55,7 +56,7 @@ class _DataTableWindowState extends ConsumerState<DataTableWindow> {
     final grid = switch (file) {
       BitFile.integer => IntegerGrid(radix: state.radix, selected: _selected, onSelect: _select),
       BitFile.float => FloatGrid(selected: _selected, onSelect: _select),
-      BitFile.timer || BitFile.counter =>
+      BitFile.timer || BitFile.counter || BitFile.control =>
         ElementGrid(file: file, selected: _selected, onSelect: _select),
       _ => BitFileGrid(file: file, selected: _selected, onSelect: _select),
     };

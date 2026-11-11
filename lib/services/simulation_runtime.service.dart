@@ -28,7 +28,7 @@ class SimulationRuntimeService implements IRuntimeService {
   static const _noiseAmplitude = 500;
 
   /// Files whose contents survive editing the program.
-  static const _keptFiles = [BitFile.bit, BitFile.timer, BitFile.counter, BitFile.integer, BitFile.float];
+  static const _keptFiles = [BitFile.bit, BitFile.timer, BitFile.counter, BitFile.control, BitFile.integer, BitFile.float];
 
   @override
   RuntimeState get current => _state;

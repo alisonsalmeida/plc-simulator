@@ -20,6 +20,7 @@ class ProjectTree extends ConsumerWidget {
     (BitFile.bit, 'B3 - BINARY'),
     (BitFile.timer, 'T4 - TIMER'),
     (BitFile.counter, 'C5 - COUNTER'),
+    (BitFile.control, 'R6 - CONTROL'),
     (BitFile.integer, 'N7 - INTEGER'),
     (BitFile.float, 'F8 - FLOAT'),
   ];

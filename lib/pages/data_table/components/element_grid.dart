@@ -8,7 +8,7 @@ import 'file_words.dart';
 import 'grid_cell.dart';
 import 'word_edit_dialog.dart';
 
-/// T4 and C5: one row per element, one column per status bit, then PRE and ACC. The
+/// T4, C5 and R6: one row per element, one column per status bit, then PRE and ACC (LEN and POS for R6). The
 /// status bits are driven by the instruction; PRE and ACC can be edited.
 class ElementGrid extends ConsumerWidget {
   const ElementGrid({super.key, required this.file, required this.selected, required this.onSelect});
@@ -26,8 +26,8 @@ class ElementGrid extends ConsumerWidget {
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       GridRow(label: '', cells: [
         for (final b in bits) GridCell(b.key, width: _cellW, header: true),
-        GridCell('PRE', width: _cellW, header: true),
-        GridCell('ACC', width: _cellW, header: true),
+        GridCell(file == BitFile.control ? 'LEN' : 'PRE', width: _cellW, header: true),
+        GridCell(file == BitFile.control ? 'POS' : 'ACC', width: _cellW, header: true),
       ]),
       for (var e = 0; e < file.elements; e++)
         GridRow(label: '${file.prefix}:$e', cells: [

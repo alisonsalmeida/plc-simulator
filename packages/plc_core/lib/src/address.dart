@@ -11,6 +11,8 @@ enum BitFile {
   timer('T4', 16, stride: 3, bitNames: {'EN': 15, 'TT': 14, 'DN': 13}),
   counter('C5', 16, stride: 3, bitNames: {'CU': 15, 'CD': 14, 'DN': 13, 'OV': 12, 'UN': 11}),
   integer('N7', 32),
+  // R6: control elements of the shift register and FIFO/LIFO instructions: status bits, LEN, POS.
+  control('R6', 16, stride: 3, bitNames: {'EN': 15, 'EU': 14, 'DN': 13, 'EM': 12, 'ER': 11, 'UL': 10, 'IN': 9, 'FD': 8}),
   // F8: 32-bit IEEE-754 floats, two words per element (low word first).
   float('F8', 16, stride: 2);
 
@@ -76,7 +78,7 @@ class BitAddress {
     final analog = RegExp(r'^([IO]):(\d+)\.(\d+)/(\d+)$').firstMatch(s);
     final b3 = RegExp(r'^B3:(\d+)/(\d+)$').firstMatch(s);
     final b3Flat = RegExp(r'^B3/(\d+)$').firstMatch(s);
-    final structured = RegExp(r'^(T4|C5):(\d+)/([A-Z0-9]+)$').firstMatch(s);
+    final structured = RegExp(r'^(T4|C5|R6):(\d+)/([A-Z0-9]+)$').firstMatch(s);
     final BitFile file;
     final int word;
     final int bit;
@@ -137,14 +139,14 @@ class BitAddress {
   String toString() => '${file.prefix}:${file.elementLabel(word)}/$bitLabel';
 }
 
-/// A timer or counter element, e.g. `T4:0`, `C5:3`.
+/// A timer, counter or control element, e.g. `T4:0`, `C5:3`, `R6:0`.
 class ElementAddress {
   const ElementAddress(this.file, this.index);
 
-  /// Parses `T4:n` / `C5:n` (restricted to [only] when given); throws [FormatException]
+  /// Parses `T4:n` / `C5:n` / `R6:n` (restricted to [only] when given); throws [FormatException]
   /// when invalid or out of range.
   factory ElementAddress.parse(String text, {BitFile? only}) {
-    final m = RegExp(r'^(T4|C5):(\d+)$').firstMatch(text.trim().toUpperCase());
+    final m = RegExp(r'^(T4|C5|R6):(\d+)$').firstMatch(text.trim().toUpperCase());
     if (m == null) throw FormatException('Invalid element address', text);
     final file = BitFile.values.firstWhere((f) => f.prefix == m[1]);
     final index = int.parse(m[2]!);
@@ -161,6 +163,10 @@ class ElementAddress {
   int get statusIndex => file.wordIndex(index);
   int get presetIndex => statusIndex + 1;
   int get accumIndex => statusIndex + 2;
+
+  /// Control elements (`R6:n`) store the length and the position in the PRE / ACC words.
+  int get lenIndex => statusIndex + 1;
+  int get posIndex => statusIndex + 2;
 
   /// The status bit [bit] of this element.
   BitAddress bitAt(int bit) => BitAddress(file, index, bit);
@@ -255,7 +261,8 @@ final class FloatConstant extends Operand {
 enum WordField { word, pre, acc }
 
 /// A 16-bit word in a data file (or the first word of a float `F8:n`): `N7:n`, `B3:n`, `O:0`, `I:0`, `S:0`/`S:1`, or the preset
-/// / accumulator of a timer or counter: `T4:n.PRE`, `T4:n.ACC`, `C5:n.PRE`, `C5:n.ACC`.
+/// / accumulator of a timer or counter: `T4:n.PRE`, `T4:n.ACC`, `C5:n.PRE`, `C5:n.ACC`, or the
+/// length / position of a control element: `R6:n.LEN`, `R6:n.POS`.
 final class WordAddress extends Operand {
   const WordAddress(this.file, this.element, [this.field = WordField.word]);
 
@@ -264,7 +271,8 @@ final class WordAddress extends Operand {
     final s = text.trim().toUpperCase();
     final plain = RegExp(r'^(S|B3|N7|F8):(\d+)$').firstMatch(s);
     final io = RegExp(r'^(O|I):(\d+)(?:\.(\d+))?$').firstMatch(s);
-    final structured = RegExp(r'^(T4|C5):(\d+)\.(ACC|PRE)$').firstMatch(s);
+    final structured = RegExp(r'^(T4|C5):(\d+)\.(ACC|PRE)$').firstMatch(s) ??
+        RegExp(r'^(R6):(\d+)\.(LEN|POS|PRE|ACC)$').firstMatch(s);
     final m = plain ?? io ?? structured;
     if (m == null) throw FormatException('Invalid word address', text);
     final file = BitFile.values.firstWhere((f) => f.prefix == m[1]);
@@ -273,8 +281,8 @@ final class WordAddress extends Operand {
         : int.parse(m[2]!);
     if (element >= file.elements) throw FormatException('Word address out of range', text);
     return WordAddress(file, element, switch (structured?[3]) {
-      'ACC' => WordField.acc,
-      'PRE' => WordField.pre,
+      'ACC' || 'POS' => WordField.acc,
+      'PRE' || 'LEN' => WordField.pre,
       _ => WordField.word,
     });
   }
@@ -289,8 +297,9 @@ final class WordAddress extends Operand {
   int get index => file.wordIndex(element) + field.index;
 
   @override
-  String format({bool hex = false}) =>
-      field == WordField.word ? '${file.prefix}:${file.elementLabel(element)}' : '${file.prefix}:$element.${field.name.toUpperCase()}';
+  String format({bool hex = false}) => field == WordField.word
+      ? '${file.prefix}:${file.elementLabel(element)}'
+      : '${file.prefix}:$element.${file == BitFile.control ? (field == WordField.pre ? 'LEN' : 'POS') : field.name.toUpperCase()}';
 
   @override
   bool operator ==(Object other) =>
@@ -314,6 +323,15 @@ abstract final class CounterBit {
   static const dn = 13;
   static const ov = 12;
   static const un = 11;
+}
+
+/// Control element status bits (R6 files).
+abstract final class ControlBit {
+  static const en = 15;
+  static const eu = 14;
+  static const dn = 13;
+  static const em = 12;
+  static const ul = 10;
 }
 
 /// Interprets the low 16 bits of [value] as a signed integer.

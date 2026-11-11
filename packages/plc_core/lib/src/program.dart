@@ -41,6 +41,10 @@ sealed class Instruction extends RungElement {
   /// NOT ([source] is the source, [address] the destination); MOD, XPY / EXPT ([source] is
   /// Source A, [mask] Source B, [address] the destination); SWP / SWAP ([source] is the
   /// source, [address] the destination); ONS (bit [address]).
+  /// BSL, BSR ([address] is the bit array's first word, [source] the bit shifted in,
+  /// [mask] the `R6:n` control element, [preset] the number of bits); FFL, LFL ([address] is
+  /// the stack's first word, [source] the value loaded); FFU, LFU ([source] is the
+  /// destination word).
   /// The extra arguments are ignored where they
   /// do not apply.
   ///
@@ -94,6 +98,12 @@ sealed class Instruction extends RungElement {
         'FRD' => Frd(source, address),
         'ONS' => Ons(address),
         'NOT' => Not(source, address),
+        'BSL' => Bsl(address, source, mask, preset),
+        'BSR' => Bsr(address, source, mask, preset),
+        'FFL' => Ffl(address, source, mask, preset),
+        'FFU' => Ffu(address, source, mask, preset),
+        'LFL' => Lfl(address, source, mask, preset),
+        'LFU' => Lfu(address, source, mask, preset),
         _ => throw ArgumentError.value(mnemonic, 'mnemonic', 'Unknown mnemonic'),
       };
 
@@ -583,6 +593,112 @@ final class Lim extends Instruction {
     final hi = read(high);
     return lo <= hi ? lo <= t && t <= hi : t >= lo || t <= hi;
   }
+}
+
+/// Shift register and stack instructions: they work on an array of words or bits (`B3:n`,
+/// `N7:n`, [array]) with an `R6:n` [control] element and a [length]. They run on the
+/// false-to-true transition of the rung (the control element's EN / EU bit stores the previous
+/// state) and are outputs. Power passes through unchanged.
+sealed class ShiftInstruction extends Instruction {
+  ShiftInstruction(String array, String control, this.length, {required int unit})
+      : array = WordAddress.parse(array),
+        control = ElementAddress.parse(control, only: BitFile.control) {
+    if (this.array.field != WordField.word ||
+        (this.array.file != BitFile.bit && this.array.file != BitFile.integer)) {
+      throw FormatException('Array must be a B3 or N7 word', array);
+    }
+    RangeError.checkValueInInterval(length, 1, maxLength, 'length');
+    final available = (this.array.file.elements - this.array.element) * (16 ~/ unit);
+    if (length > available) throw FormatException('Array out of range', array);
+  }
+
+  /// Largest length of a bit array or stack.
+  static const maxLength = 128;
+
+  /// First word of the bit array / stack.
+  final WordAddress array;
+  final ElementAddress control;
+
+  /// Number of bits (BSL, BSR) or words (FFL, FFU, LFL, LFU).
+  final int length;
+
+  @override
+  bool get isOutput => true;
+  @override
+  String get target => array.toString();
+
+  /// Words of the array, as addresses.
+  WordAddress word(int i) => WordAddress(array.file, array.element + i);
+}
+
+/// Bit shift: shifts the bits of an array by one position per rung transition.
+sealed class BitShiftInstruction extends ShiftInstruction {
+  BitShiftInstruction(super.array, String bit, super.control, super.length)
+      : bit = BitAddress.parse(bit),
+        super(unit: 1);
+
+  /// The bit shifted into the array.
+  final BitAddress bit;
+}
+
+/// Bit shift left: bit 0 takes [bit], the last bit goes to UL.
+final class Bsl extends BitShiftInstruction {
+  Bsl(super.array, super.bit, super.control, super.length);
+  @override
+  String get mnemonic => 'BSL';
+}
+
+/// Bit shift right: the last bit takes [bit], bit 0 goes to UL.
+final class Bsr extends BitShiftInstruction {
+  Bsr(super.array, super.bit, super.control, super.length);
+  @override
+  String get mnemonic => 'BSR';
+}
+
+/// Stack load (FFL, LFL): [source] is stored at the position POS of the array.
+sealed class StackLoadInstruction extends ShiftInstruction {
+  StackLoadInstruction(super.array, String source, super.control, super.length)
+      : source = Operand.parse(source),
+        super(unit: 16);
+
+  final Operand source;
+}
+
+/// Stack unload (FFU, LFU): a word of the array is moved to [dest].
+sealed class StackUnloadInstruction extends ShiftInstruction {
+  StackUnloadInstruction(super.array, String dest, super.control, super.length)
+      : dest = WordAddress.parse(dest),
+        super(unit: 16);
+
+  final WordAddress dest;
+}
+
+/// FIFO load.
+final class Ffl extends StackLoadInstruction {
+  Ffl(super.array, super.source, super.control, super.length);
+  @override
+  String get mnemonic => 'FFL';
+}
+
+/// FIFO unload: the oldest word (position 0) goes to [dest] and the others move down.
+final class Ffu extends StackUnloadInstruction {
+  Ffu(super.array, super.dest, super.control, super.length);
+  @override
+  String get mnemonic => 'FFU';
+}
+
+/// LIFO load.
+final class Lfl extends StackLoadInstruction {
+  Lfl(super.array, super.source, super.control, super.length);
+  @override
+  String get mnemonic => 'LFL';
+}
+
+/// LIFO unload: the newest word goes to [dest].
+final class Lfu extends StackUnloadInstruction {
+  Lfu(super.array, super.dest, super.control, super.length);
+  @override
+  String get mnemonic => 'LFU';
 }
 
 /// Parallel branch: power out is the OR of every path.

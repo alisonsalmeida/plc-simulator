@@ -503,5 +503,24 @@ final ladderExamples = <LadderExample>[
       },
     ),
   ),
+  LadderExample(
+    name: 'Fila FIFO de peças (FFL / FFU)',
+    momentaryInputs: const {0, 1},
+    program: Program(
+      [
+        Rung(
+          [Xic('I:0/0'), Ffl('N7:10', 'N7:0', 'R6:0', 8)],
+          title: 'FILA FIFO',
+          comment: 'FFL: a cada borda de S1, o valor de N7:0 entra no fim da fila N7:10 (8 posições).',
+        ),
+        Rung(
+          [Xic('I:0/1'), Ffu('N7:10', 'N7:1', 'R6:0', 8)],
+          comment: 'FFU: a cada borda de S2, a palavra mais antiga sai da fila para N7:1. '
+              'R6:0 mostra o tamanho (LEN), a posição (POS) e os bits DN e EM.',
+        ),
+      ],
+      symbols: const {'I:0/0': 'S1_CARREGA', 'I:0/1': 'S2_DESCARREGA'},
+    ),
+  ),
   LadderExample(name: 'Novo programa', program: const Program([])),
 ];
