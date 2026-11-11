@@ -179,6 +179,14 @@ class AppMenuBar extends ConsumerWidget {
                   ),
                   MenuItemButton(
                     style: compact,
+                    leadingIcon: _check(view == MainView.chassis),
+                    onPressed: () => ref
+                        .read(mainViewProvider.notifier)
+                        .select(MainView.chassis),
+                    child: const Text('Configuração de Chassi e E/S'),
+                  ),
+                  MenuItemButton(
+                    style: compact,
                     leadingIcon: _check(dataOpen),
                     onPressed: () {
                       final table = ref.read(dataTableProvider.notifier);
@@ -195,6 +203,19 @@ class AppMenuBar extends ConsumerWidget {
                   ),
                 ],
                 child: const Text('Exibir'),
+              ),
+              SubmenuButton(
+                style: compact,
+                menuChildren: [
+                  MenuItemButton(
+                    style: compact,
+                    onPressed: () => ref
+                        .read(mainViewProvider.notifier)
+                        .select(MainView.chassis),
+                    child: const Text('Configuração de E/S...'),
+                  ),
+                ],
+                child: const Text('PLC'),
               ),
               SubmenuButton(
                 style: compact,

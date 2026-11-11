@@ -47,11 +47,13 @@ void main() {
         child: MaterialApp(
           home: Scaffold(
             body: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: BitFileGrid(
-                file: BitFile.output,
-                selected: null,
-                onSelect: (_) {},
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: BitFileGrid(
+                  file: BitFile.output,
+                  selected: null,
+                  onSelect: (_) {},
+                ),
               ),
             ),
           ),

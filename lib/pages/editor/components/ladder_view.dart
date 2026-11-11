@@ -9,11 +9,24 @@ import 'rung_view.dart';
 
 /// Self-contained ladder editor/monitor pane: all rungs plus the END rung, scrollable in
 /// both directions. It only reads the providers, so it can live in any container.
-class LadderView extends ConsumerWidget {
+class LadderView extends ConsumerStatefulWidget {
   const LadderView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LadderView> createState() => _LadderViewState();
+}
+
+class _LadderViewState extends ConsumerState<LadderView> {
+  final _hController = ScrollController();
+
+  @override
+  void dispose() {
+    _hController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(programProvider);
     final program = state.program;
     final runtime = ref.watch(runtimeProvider);
@@ -29,7 +42,9 @@ class LadderView extends ConsumerWidget {
         if (endRungMinWidth > width) width = endRungMinWidth;
         final n = program.rungs.length;
         return Scrollbar(
+          controller: _hController,
           child: SingleChildScrollView(
+            controller: _hController,
             scrollDirection: Axis.horizontal,
             child: SizedBox(
               width: width + 16,

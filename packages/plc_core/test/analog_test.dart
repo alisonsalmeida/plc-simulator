@@ -20,10 +20,10 @@ void main() {
     });
 
     test('rejects wrong slot or channel', () {
-      for (final bad in ['I:1.4', 'I:2.0', 'O:2.2', 'O:1.0', 'I:1', 'O:2', 'I:0.0']) {
+      for (final bad in ['I:1.8', 'I:99.0', 'O:99.0', 'I:0.0', 'O:0.0']) {
         expect(() => WordAddress.parse(bad), throwsFormatException, reason: bad);
       }
-      for (final bad in ['I:1.4/0', 'O:2.2/0', 'I:1/0', 'O:2/0', 'I:1.0/16']) {
+      for (final bad in ['I:1.8/0', 'O:99.0/0', 'I:99/0', 'O:99/0', 'I:1.0/16']) {
         expect(() => BitAddress.parse(bad), throwsFormatException, reason: bad);
       }
     });

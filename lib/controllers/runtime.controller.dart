@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:plc_core/plc_core.dart';
 
 import '../interfaces/runtime.interface.dart';
 import '../models/runtime_state.model.dart';
@@ -35,6 +36,8 @@ class RuntimeController extends Notifier<RuntimeState> {
   void step() => _service.step();
   void stop() => _service.stop();
   void setInput(int bit, bool value) => _service.setInput(bit, value);
+  void setBit(BitAddress address, bool value) => _service.setBit(address, value);
+  void writeWord(WordAddress address, int value) => _service.writeWord(address, value);
   void clearAllForces() => _service.clearAllForces();
 }
 

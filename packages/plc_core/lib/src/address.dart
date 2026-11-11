@@ -1,11 +1,14 @@
+import 'chassis.dart';
+
 /// Data files (SLC 500 style). Plain files hold one 16-bit word per address word; the
 /// structured files (timers, counters) hold [stride] words per element: status bits, PRE, ACC.
 enum BitFile {
   // O: word 0 is O:0 (slot 0, 16 digital outputs); words 1..2 are the analog output module
   // in slot 2 (O:2.0, O:2.1). I: word 0 is I:0; words 1..4 are the analog input module in
-  // slot 1 (I:1.0 .. I:1.3).
-  output('O', 3),
-  input('I', 5),
+  // slot 1 (I:1.0 .. I:1.3). From word 5 on, every slot s >= 1 owns 8 words:
+  // word 5 + (s - 1) * 8 + w is `I:s.w` / `O:s.w` (w = 0 is also the digital word `I:s/bit`).
+  output('O', 128),
+  input('I', 128),
   status('S', 6),
   bit('B3', 16),
   timer('T4', 16, stride: 3, bitNames: {'EN': 15, 'TT': 14, 'DN': 13}),
@@ -37,10 +40,18 @@ enum BitFile {
 
   /// Address text of [element] after the prefix: `0`, `1.2` (analog I/O slot syntax) or `5`.
   String elementLabel(int element) => switch (this) {
-        BitFile.input when element > 0 => '$analogInputSlot.${element - 1}',
-        BitFile.output when element > 0 => '$analogOutputSlot.${element - 1}',
+        BitFile.input || BitFile.output when element == 0 => '0',
+        BitFile.input when element <= 4 => '$analogInputSlot.${element - 1}',
+        BitFile.output when element <= 2 => '$analogOutputSlot.${element - 1}',
+        BitFile.input || BitFile.output when element >= 5 => _ioLabel(element),
         _ => '$element',
       };
+
+  static String _ioLabel(int element) {
+    final slot = 1 + (element - 5) ~/ 8;
+    final sub = (element - 5) % 8;
+    return sub == 0 ? '$slot' : '$slot.$sub';
+  }
 }
 
 /// Chassis slot of the analog input module (`I:1.0` .. `I:1.3`).
@@ -53,17 +64,40 @@ const analogOutputSlot = 2;
 const analogInputChannels = 4;
 const analogOutputChannels = 2;
 
-/// Parses the `slot[.word]` part of an `I:` / `O:` address into a word index of the file;
-/// null when invalid or out of range. Plain `I:0` / `O:0` is the digital slot 0.
-int? _ioElement(BitFile file, String slot, String? word) {
-  final s = int.parse(slot);
-  if (word == null) return s == 0 ? 0 : null;
-  final w = int.parse(word);
-  final (analogSlot, channels) = file == BitFile.input
-      ? (analogInputSlot, analogInputChannels)
-      : (analogOutputSlot, analogOutputChannels);
-  return s == analogSlot && w < channels ? 1 + w : null;
+/// Data table word of the I/O [file] for [slot] and analog [channel] (null = the digital
+/// word `I:s/bit`); null when out of range. `I:1.0..3` and `O:2.0..1` keep their legacy words
+/// 1..4 and 1..2; every other slot s >= 1 owns the 8 words from `5 + (s - 1) * 8`.
+int? ioElement(BitFile file, int slot, int? channel) {
+  if (slot < 0 || slot > 15) return null;
+  if (slot == 0) return channel == null ? 0 : null;
+  final w = channel ?? 0;
+  if (w > 7) return null;
+  if (channel != null) {
+    if (file == BitFile.input && slot == analogInputSlot && w < analogInputChannels) return 1 + w;
+    if (file == BitFile.output && slot == analogOutputSlot && w < analogOutputChannels) return 1 + w;
+  }
+  return 5 + (slot - 1) * 8 + w;
 }
+
+/// Slot of the I/O data table word [element] of [file].
+int ioSlotOf(BitFile file, int element) => element == 0
+    ? 0
+    : (element <= 4 && file == BitFile.input
+        ? analogInputSlot
+        : (element <= 2 && file == BitFile.output ? analogOutputSlot : 1 + (element - 5) ~/ 8));
+
+/// Analog channel of the I/O word [element]; null for the digital word (`I:s/bit`). The word
+/// `5 + (s - 1) * 8` is both the digital word and analog channel 0 of slot s: null there.
+int? ioChannelOf(BitFile file, int element) {
+  if (element == 0) return null;
+  if (element <= 4 && file == BitFile.input) return element - 1;
+  if (element <= 2 && file == BitFile.output) return element - 1;
+  final sub = (element - 5) % 8;
+  return sub == 0 ? null : sub;
+}
+
+int? _ioElement(BitFile file, String slot, String? word) =>
+    ioElement(file, int.parse(slot), word == null ? null : int.parse(word));
 
 /// A single bit in a data file, e.g. `I:0/0`, `O:0/15`, `S:1/15`, `B3:0/3`, `B3/17`,
 /// `N7:0/3`, `T4:0/DN`, `C5:3/CU`. In structured files [word] is the element number.
@@ -72,7 +106,9 @@ class BitAddress {
 
   /// Parses an address; throws [FormatException] when invalid or out of range.
   /// Timer and counter bits accept a mnemonic (`T4:0/DN`) or a bit number (`T4:0/13`).
-  factory BitAddress.parse(String text) {
+  ///
+  /// With a [chassis], I/O addresses are also checked against the mounted modules.
+  factory BitAddress.parse(String text, {ChassisConfig? chassis}) {
     final s = text.trim().toUpperCase();
     final io = RegExp(r'^([IOS]|N7):(\d+)/(\d+)$').firstMatch(s);
     final analog = RegExp(r'^([IO]):(\d+)\.(\d+)/(\d+)$').firstMatch(s);
@@ -113,12 +149,19 @@ class BitAddress {
     if (word >= file.elements || bit > 15) {
       throw FormatException('Bit address out of range', text);
     }
-    return BitAddress(file, word, bit);
+    final result = BitAddress(file, word, bit);
+    final error = chassis?.validateIo(file, ioSlotOf(file, word),
+        analog == null ? null : int.parse(analog[3]!), bit, s);
+    if (error != null) throw FormatException(error, text);
+    return result;
   }
 
   final BitFile file;
   final int word;
   final int bit;
+
+  /// Chassis slot of an `I:` / `O:` address.
+  int get slot => ioSlotOf(file, word);
 
   /// The bit part as printed: the mnemonic for named timer/counter bits, else the number.
   String get bitLabel {
@@ -267,7 +310,9 @@ final class WordAddress extends Operand {
   const WordAddress(this.file, this.element, [this.field = WordField.word]);
 
   /// Parses a word address; throws [FormatException] when invalid or out of range.
-  factory WordAddress.parse(String text) {
+  ///
+  /// With a [chassis], I/O addresses are also checked against the mounted modules.
+  factory WordAddress.parse(String text, {ChassisConfig? chassis}) {
     final s = text.trim().toUpperCase();
     final plain = RegExp(r'^(S|B3|N7|F8):(\d+)$').firstMatch(s);
     final io = RegExp(r'^(O|I):(\d+)(?:\.(\d+))?$').firstMatch(s);
@@ -280,11 +325,17 @@ final class WordAddress extends Operand {
         ? _ioElement(file, io[2]!, io[3]) ?? (throw FormatException('Word address out of range', text))
         : int.parse(m[2]!);
     if (element >= file.elements) throw FormatException('Word address out of range', text);
-    return WordAddress(file, element, switch (structured?[3]) {
+    final result = WordAddress(file, element, switch (structured?[3]) {
       'ACC' || 'POS' => WordField.acc,
       'PRE' || 'LEN' => WordField.pre,
       _ => WordField.word,
     });
+    // `I:2.0` and `I:2` share a word: the typed form decides how it is checked.
+    final error = io == null
+        ? null
+        : chassis?.validateIo(file, ioSlotOf(file, element), io[3] == null ? null : int.parse(io[3]!), null, s);
+    if (error != null) throw FormatException(error, text);
+    return result;
   }
 
   final BitFile file;
@@ -295,6 +346,12 @@ final class WordAddress extends Operand {
 
   /// Index of the word in the file's word array.
   int get index => file.wordIndex(element) + field.index;
+
+  /// Chassis slot of an `I:` / `O:` word.
+  int get slot => ioSlotOf(file, element);
+
+  /// Analog channel of an `I:` / `O:` word; null for a digital word.
+  int? get channel => ioChannelOf(file, element);
 
   @override
   String format({bool hex = false}) => field == WordField.word

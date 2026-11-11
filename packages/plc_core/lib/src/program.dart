@@ -1,4 +1,5 @@
 import 'address.dart';
+import 'chassis.dart';
 
 /// Anything that can sit on a rung: an instruction or a parallel branch.
 sealed class RungElement {
@@ -725,9 +726,17 @@ class Rung {
 }
 
 class Program {
-  const Program(this.rungs, {this.symbols = const {}, this.descriptions = const {}});
+  const Program(
+    this.rungs, {
+    this.symbols = const {},
+    this.descriptions = const {},
+    this.chassis = ChassisConfig.standard,
+  });
 
   final List<Rung> rungs;
+
+  /// The rack and the modules mounted in it; decides which I/O addresses exist.
+  final ChassisConfig chassis;
 
   /// Symbol (short name) keyed by canonical address (e.g. `I:0/0` → "B1 Liga").
   final Map<String, String> symbols;
@@ -739,11 +748,13 @@ class Program {
     List<Rung>? rungs,
     Map<String, String>? symbols,
     Map<String, String>? descriptions,
+    ChassisConfig? chassis,
   }) =>
       Program(
         rungs ?? this.rungs,
         symbols: symbols ?? this.symbols,
         descriptions: descriptions ?? this.descriptions,
+        chassis: chassis ?? this.chassis,
       );
 
   String? symbolFor(BitAddress a) => symbols[a.toString()];

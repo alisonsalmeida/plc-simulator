@@ -1,3 +1,4 @@
+import 'chassis.dart';
 import 'program.dart';
 
 /// Value of the top-level `format` key of a saved program.
@@ -13,6 +14,7 @@ Map<String, Object?> programToJson(Program program) => {
   'rungs': [for (final r in program.rungs) _rungToJson(r)],
   'symbols': Map<String, String>.of(program.symbols),
   'descriptions': Map<String, String>.of(program.descriptions),
+  'chassis': program.chassis.toJson(),
 };
 
 Map<String, Object?> _rungToJson(Rung rung) => {
@@ -111,6 +113,11 @@ Program programFromJson(Map<String, Object?> json) {
     ],
     symbols: _stringMap(json, 'symbols'),
     descriptions: _stringMap(json, 'descriptions'),
+    chassis: switch (json['chassis']) {
+      null => ChassisConfig.defaultConfig(),
+      final Map<String, Object?> c => ChassisConfig.fromJson(c),
+      _ => throw const FormatException('chassis must be an object'),
+    },
   );
 }
 

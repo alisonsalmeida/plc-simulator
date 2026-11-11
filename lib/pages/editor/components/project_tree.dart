@@ -117,12 +117,9 @@ class ProjectTree extends ConsumerWidget {
                           _Leaf(
                             'Configuração de E/S',
                             2,
-                            onTap: () =>
-                                _info(context, 'Configuração de E/S', const [
-                                  'Slot 0: Digital, 16 entradas / 16 saídas',
-                                  'Slot 1: Analógico, 4 entradas',
-                                  'Slot 2: Analógico, 2 saídas',
-                                ]),
+                            onTap: () => ref
+                                .read(mainViewProvider.notifier)
+                                .select(MainView.chassis),
                           ),
                         ],
                       ),

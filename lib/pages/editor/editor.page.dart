@@ -13,6 +13,7 @@ import '../data_table/data_table_window.dart';
 import '../../controllers/find_replace.controller.dart';
 import '../../controllers/project_tree.controller.dart';
 import 'components/app_menu_bar.dart';
+import 'components/chassis_view.dart';
 import 'components/find_replace_dialog.dart';
 import 'components/io_panel.dart';
 import 'components/project_tree.dart';
@@ -48,8 +49,10 @@ class EditorPage extends ConsumerWidget {
       ),
     );
     // The Data Files window sits outside the Focus so the Delete key never reaches it.
-    final hmi = ref.watch(mainViewProvider) == MainView.hmi;
-    final ladder = hmi
+    final view = ref.watch(mainViewProvider);
+    final content = view == MainView.chassis
+        ? const ChassisConfigView()
+        : view == MainView.hmi
         ? const HmiView()
         : LayoutBuilder(
             builder: (_, c) {
@@ -74,6 +77,12 @@ class EditorPage extends ConsumerWidget {
               );
             },
           );
+    final ladder = Column(
+      children: [
+        _ViewTabs(view: view),
+        Expanded(child: content),
+      ],
+    );
     final treeOpen = ref.watch(projectTreeProvider.select((s) => s.isOpen));
     final findOpen = ref.watch(findReplaceProvider.select((s) => s.isOpen));
     final main = treeOpen
@@ -118,6 +127,45 @@ class EditorPage extends ConsumerWidget {
             const Positioned(top: 90, right: 360, child: FindReplaceDialog()),
         ],
       ),
+    );
+  }
+}
+
+/// Tab row above the main area: ladder, Supervisório and the chassis configuration.
+class _ViewTabs extends ConsumerWidget {
+  const _ViewTabs({required this.view});
+
+  final MainView view;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    Widget tab(MainView value, String label) => InkWell(
+      key: ValueKey('view-tab-${value.name}'),
+      onTap: () => ref.read(mainViewProvider.notifier).select(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: view == value ? Colors.white : Colors.black12,
+          border: Border(
+            top: BorderSide(color: view == value ? Colors.blue : Colors.black26, width: 2),
+            right: const BorderSide(color: Colors.black26),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: view == value ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+    return Row(
+      children: [
+        tab(MainView.ladder, 'LAD 2 - MAIN'),
+        tab(MainView.hmi, 'IHM - Supervisório'),
+        tab(MainView.chassis, 'Chassi - Configuração de E/S'),
+      ],
     );
   }
 }

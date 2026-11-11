@@ -31,6 +31,17 @@ class ProgramController extends Notifier<ProgramState> {
     );
   }
 
+  /// Replaces the whole rack configuration.
+  void setChassis(ChassisConfig chassis) =>
+      replaceProgram(state.program.copyWith(chassis: chassis));
+
+  /// Mounts [module] in [slot] (slot 0 takes only a CPU).
+  void setChassisSlot(int slot, ModuleDefinition module) =>
+      setChassis(state.program.chassis.setSlot(slot, module));
+
+  /// Empties [slot].
+  void clearChassisSlot(int slot) => setChassis(state.program.chassis.clearSlot(slot));
+
   /// Selects the rung at [index]; null clears the selection.
   void selectRung(int? index) => state = index == null
       ? state.copyWith(clearSelection: true)

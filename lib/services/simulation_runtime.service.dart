@@ -182,7 +182,7 @@ class SimulationRuntimeService implements IRuntimeService {
 
   /// I:1.x words are overwritten by the analog input image every scan, so writes go
   /// through [setAnalogInput].
-  bool _isAnalogInput(BitFile file, int element) => file == BitFile.input && element > 0;
+  bool _isAnalogInput(BitFile file, int element) => file == BitFile.input && element >= 1 && element <= 4;
 
   /// Sets analog input bit [a] to [value], or flips it when [value] is null.
   void _flipAnalogBit(BitAddress a, bool? value) {

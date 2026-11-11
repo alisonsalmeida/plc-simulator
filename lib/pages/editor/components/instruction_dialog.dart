@@ -48,6 +48,7 @@ Future<InstructionInput?> showInstructionDialog(
   String mask = '',
   String offset = '',
   bool canDelete = false,
+  ChassisConfig? chassis,
 }) =>
     showDialog<InstructionInput>(
       context: context,
@@ -62,6 +63,7 @@ Future<InstructionInput?> showInstructionDialog(
         mask: mask,
         offset: offset,
         canDelete: canDelete,
+        chassis: chassis,
       ),
     );
 
@@ -77,6 +79,7 @@ class _InstructionDialog extends StatefulWidget {
     required this.mask,
     required this.offset,
     required this.canDelete,
+    this.chassis,
   });
 
   final String mnemonic;
@@ -89,6 +92,9 @@ class _InstructionDialog extends StatefulWidget {
   final String mask;
   final String offset;
   final bool canDelete;
+
+  /// When set, I/O addresses are checked live against the mounted modules.
+  final ChassisConfig? chassis;
 
   @override
   State<_InstructionDialog> createState() => _InstructionDialogState();
@@ -108,6 +114,15 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   String? _sourceError;
   String? _maskError;
   String? _offsetError;
+
+  /// Why the typed I/O address does not exist in the chassis; null when fine or not an I/O
+  /// address (malformed text is left to the submit check).
+  String? get _chassisError {
+    final text = _address.text.trim();
+    if (widget.chassis == null || !RegExp(r'^[IO]:', caseSensitive: false).hasMatch(text)) return null;
+    final error = widget.chassis!.validateAddressString(text);
+    return error != null && error.startsWith('Endereço inválido') ? null : error;
+  }
 
   bool get _isTimer => const {'TON', 'TOF', 'RTO'}.contains(widget.mnemonic);
   // Logic instructions share the math dialog layout: Source A, Source B, Destination.
@@ -147,6 +162,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   }
 
   void _submit() {
+    if (_chassisError != null) return;
     final preset = int.tryParse(_preset.text.trim());
     final presetOk = _isShift
         ? (preset != null && preset >= 1 && preset <= 128)
@@ -266,8 +282,9 @@ class _InstructionDialogState extends State<_InstructionDialog> {
         decoration: InputDecoration(
           labelText: _isShift ? 'Vetor' : _isCompare ? 'Origem A' : (_isLimit ? 'Teste' : (_isWord ? 'Destino' : 'Endereço')),
           hintText: _hint,
-          errorText: _error,
+          errorText: _chassisError ?? _error,
         ),
+        onChanged: (_) => setState(() => _error = null),
         onSubmitted: (_) => _submit(),
       );
 
@@ -321,7 +338,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
               child: const Text('Excluir'),
             ),
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          FilledButton(onPressed: _submit, child: const Text('OK')),
+          FilledButton(onPressed: _chassisError == null ? _submit : null, child: const Text('OK')),
         ],
       );
 }

@@ -19,7 +19,7 @@ class RungActions {
 
   Future<RungElement?> _newElement(String tool) async {
     if (tool == LadderAssets.branch) return const Branch([[], []]);
-    final input = await showInstructionDialog(context, mnemonic: tool);
+    final input = await showInstructionDialog(context, mnemonic: tool, chassis: program.chassis);
     if (input == null || !context.mounted) return null;
     final edit = ref.read(rungEditProvider.notifier);
     if (input.symbol.isNotEmpty) edit.setSymbol(input.address, input.symbol);
@@ -74,6 +74,7 @@ class RungActions {
     final input = await showInstructionDialog(
       context,
       mnemonic: ins.mnemonic,
+      chassis: program.chassis,
       address: ins.target,
       symbol: program.symbolOf(ins) ?? '',
       description: program.descriptionOf(ins) ?? '',

@@ -74,10 +74,8 @@ void main() {
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Configuração de E/S'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Slot 2'), findsOneWidget);
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      expect(container.read(mainViewProvider), MainView.chassis);
 
       await tester.tap(find.text('Arquivos de Dados'));
       await tester.pump();

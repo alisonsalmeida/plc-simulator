@@ -151,15 +151,18 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
             ),
           ]),
         ),
-        Row(children: [
-          for (final t in _tabs)
-            _TabButton(
-              label: t,
-              selected: t == _tab,
-              enabled: _enabledTabs.contains(t),
-              onTap: () => setState(() => _tab = t),
-            ),
-        ]),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            for (final t in _tabs)
+              _TabButton(
+                label: t,
+                selected: t == _tab,
+                enabled: _enabledTabs.contains(t),
+                onTap: () => setState(() => _tab = t),
+              ),
+          ]),
+        ),
       ]),
     );
   }

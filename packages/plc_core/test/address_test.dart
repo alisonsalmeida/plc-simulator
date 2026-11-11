@@ -16,7 +16,7 @@ void main() {
   });
 
   test('rejects invalid or out-of-range addresses', () {
-    for (final bad in ['', 'I0/0', 'I:1/0', 'O:0/16', 'S:6/0', 'B3:16/0', 'B3/256', 'N7:0']) {
+    for (final bad in ['', 'I0/0', 'O:0/16', 'S:6/0', 'B3:16/0', 'B3/256', 'N7:0']) {
       expect(() => BitAddress.parse(bad), throwsFormatException, reason: bad);
     }
   });

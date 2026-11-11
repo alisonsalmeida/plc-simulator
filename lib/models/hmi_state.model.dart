@@ -1,5 +1,5 @@
 /// Which screen fills the main (left) area of the editor.
-enum MainView { ladder, hmi }
+enum MainView { ladder, hmi, chassis }
 
 /// Kinds of widget the student can place on the Supervisório canvas.
 enum HmiKind {

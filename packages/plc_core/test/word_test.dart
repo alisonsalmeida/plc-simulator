@@ -28,7 +28,7 @@ void main() {
 
     test('reject bad or out of range input', () {
       for (final bad in [
-        '', 'N7', 'N7:32', 'N7:-1', 'B3:16', 'O:1', 'I:1', 'S:6', 'T4:0', 'T4:16.ACC',
+        '', 'N7', 'N7:32', 'N7:-1', 'B3:16', 'O:99', 'I:99', 'S:6', 'T4:0', 'T4:16.ACC',
         'C5:0.DN', 'T4:0.XX', 'N7:0/3', 'X1:0', 'N8:0', 'N7:0.ACC',
       ]) {
         expect(() => WordAddress.parse(bad), throwsFormatException, reason: bad);
