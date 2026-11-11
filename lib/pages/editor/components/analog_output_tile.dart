@@ -6,6 +6,7 @@ import '../../../controllers/analog_io.controller.dart';
 import '../../../controllers/program.controller.dart';
 import '../../../controllers/runtime.controller.dart';
 import '../../../theme/app_theme.dart';
+import 'analog_chart.dart';
 import 'analog_format.dart';
 
 /// One analog output channel (O:2.n): range selector and a read-only gauge in V / mA.
@@ -25,6 +26,13 @@ class AnalogOutputTile extends ConsumerWidget {
       address: address,
       symbol: symbol,
       raw: raw,
+      chart: AnalogWaveformChart(
+        value: physical,
+        min: 0,
+        max: AnalogOutput.maxPhysical(range),
+        unit: range.unit,
+        color: Colors.amber,
+      ),
       selector: AnalogRangeSelector(
         key: ValueKey('analog-out-range-$channel'),
         range: range,

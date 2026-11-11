@@ -24,6 +24,14 @@ class AnalogIoController extends Notifier<AnalogIoState> {
     setInputPhysical(channel, physical);
   }
 
+  /// Flips the simulated sensor noise of input [channel].
+  void toggleNoise(int channel) {
+    final noise = [...state.noiseEnabled];
+    noise[channel] = !noise[channel];
+    state = state.copyWith(noiseEnabled: noise);
+    ref.read(runtimeServiceProvider).setAnalogNoise(channel, noise[channel]);
+  }
+
   void setOutputRange(int channel, AnalogRange range) {
     final ranges = [...state.outputRanges]..[channel] = range;
     state = state.copyWith(outputRanges: ranges);

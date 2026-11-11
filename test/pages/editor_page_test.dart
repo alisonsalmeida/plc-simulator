@@ -107,4 +107,56 @@ void main() {
     expect(result?.preset, 30);
     expect(result?.timeBase, TimeBase.second);
   });
+
+  group('moving and paralleling placed elements', () {
+    late ProviderContainer container;
+    late ElementEditController edit;
+
+    Rung rung0() => container.read(programProvider).program.rungs[0];
+    String addr(Rung r, List<int> path) => (elementAt(r, path) as Instruction).target;
+
+    setUp(() {
+      container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(programProvider.notifier).select(ladderExamples.length - 1);
+      container.read(rungEditProvider.notifier).addRung();
+      edit = container.read(elementEditProvider.notifier);
+      edit.insertElement(0, [0], Instruction.create('XIC', 'I:0/0'));
+      edit.insertElement(0, [1], Instruction.create('XIC', 'I:0/1'));
+      edit.insertElement(0, [2], Instruction.create('OTE', 'O:0/0'));
+    });
+
+    test('moveElement reorders a series', () {
+      edit.moveElement(0, [0], 0, [2]); // after the second contact
+      expect([for (var i = 0; i < 3; i++) addr(rung0(), [i])], ['I:0/1', 'I:0/0', 'O:0/0']);
+      edit.moveElement(0, [2], 0, [0]); // coil to the front
+      expect([for (var i = 0; i < 3; i++) addr(rung0(), [i])], ['O:0/0', 'I:0/1', 'I:0/0']);
+    });
+
+    test('wrapInBranch puts a new contact in parallel with an existing one', () {
+      edit.wrapInBranch(0, [0], Instruction.create('XIC', 'I:0/5'));
+      final branch = rung0().elements.first as Branch;
+      expect(branch.paths.length, 2);
+      expect((branch.paths[0].single as Instruction).target, 'I:0/0');
+      expect((branch.paths[1].single as Instruction).target, 'I:0/5');
+    });
+
+    test('moveIntoParallel moves a contact beside another and keeps the rest in order', () {
+      edit.moveIntoParallel(0, [1], 0, [0]);
+      final r = rung0();
+      expect(r.elements.length, 2);
+      final branch = r.elements.first as Branch;
+      expect((branch.paths[0].single as Instruction).target, 'I:0/0');
+      expect((branch.paths[1].single as Instruction).target, 'I:0/1');
+      expect(addr(r, [1]), 'O:0/0');
+    });
+
+    test('moving the last contact out of a branch dissolves it', () {
+      edit.wrapInBranch(0, [0], Instruction.create('XIC', 'I:0/5'));
+      edit.moveElement(0, [0, 1, 0], 0, [2]);
+      final r = rung0();
+      expect(r.elements.every((e) => e is Instruction), isTrue);
+      expect([for (var i = 0; i < r.elements.length; i++) addr(r, [i])], ['I:0/0', 'I:0/1', 'I:0/5', 'O:0/0']);
+    });
+  });
 }

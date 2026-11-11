@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../controllers/data_table.controller.dart';
+import '../../../controllers/drag_tool.controller.dart';
 import '../../../controllers/program.controller.dart';
 import '../../../controllers/rung_edit.controller.dart';
+import '../../../models/drag_data.model.dart';
 import '../../../controllers/runtime.controller.dart';
 import '../../../models/runtime_state.model.dart';
 import '../../../theme/ladder_assets.dart';
@@ -85,9 +87,12 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
           child: Wrap(spacing: 4, runSpacing: 4, children: [
             Tooltip(
               message: 'New Rung – Nova linha',
-              child: Draggable<String>(
-                data: LadderAssets.rung,
+              child: Draggable<RungDragData>(
+                data: const RungDragData(tool: LadderAssets.rung),
                 maxSimultaneousDrags: enabled ? 1 : 0,
+                onDragStarted: () => ref.read(dragToolProvider.notifier).start(LadderAssets.rung),
+                onDragEnd: (_) => ref.read(dragToolProvider.notifier).stop(),
+                onDraggableCanceled: (_, _) => ref.read(dragToolProvider.notifier).stop(),
                 feedback: Material(
                   elevation: 4,
                   child: _Tile(tool: LadderAssets.rung, enabled: true),
@@ -107,9 +112,12 @@ class _InstructionToolbarState extends ConsumerState<InstructionToolbar> {
             }).entries)
               Tooltip(
                 message: value,
-                child: Draggable<String>(
-                  data: key,
+                child: Draggable<RungDragData>(
+                  data: RungDragData(tool: key),
                   maxSimultaneousDrags: enabled ? 1 : 0,
+                  onDragStarted: () => ref.read(dragToolProvider.notifier).start(key),
+                  onDragEnd: (_) => ref.read(dragToolProvider.notifier).stop(),
+                  onDraggableCanceled: (_, _) => ref.read(dragToolProvider.notifier).stop(),
                   feedback: Material(elevation: 4, child: _Tile(tool: key, enabled: true)),
                   childWhenDragging: Opacity(opacity: 0.4, child: _Tile(tool: key, enabled: true)),
                   child: _Tile(tool: key, enabled: enabled),

@@ -21,7 +21,27 @@ class IoPanel extends ConsumerWidget {
     final kinds = ref.watch(ioPanelProvider).kinds;
     final title = Theme.of(context).textTheme.titleSmall;
     String? symbol(BitFile f, int bit) => program.symbolFor(BitAddress(f, 0, bit));
+    final tab = ref.watch(ioPanelTabProvider);
+    final tabs = _IoTabs(
+      tab: tab,
+      onSelect: ref.read(ioPanelTabProvider.notifier).select,
+    );
+    if (tab == IoPanelTab.analog) {
+      return ListView(padding: const EdgeInsets.all(12), children: [
+        tabs,
+        const SizedBox(height: 12),
+        Text('Entradas analógicas (I:$analogInputSlot)', style: title),
+        const SizedBox(height: 8),
+        for (var ch = 0; ch < analogInputChannels; ch++) AnalogInputTile(channel: ch),
+        const SizedBox(height: 10),
+        Text('Saídas analógicas (O:$analogOutputSlot)', style: title),
+        const SizedBox(height: 8),
+        for (var ch = 0; ch < analogOutputChannels; ch++) AnalogOutputTile(channel: ch),
+      ]);
+    }
     return ListView(padding: const EdgeInsets.all(12), children: [
+      tabs,
+      const SizedBox(height: 12),
       Text('Entradas (I:0)', style: title),
       const SizedBox(height: 8),
       Wrap(spacing: 6, runSpacing: 6, children: [
@@ -41,19 +61,59 @@ class IoPanel extends ConsumerWidget {
           _Tile(
             address: 'O:0/$bit',
             symbol: symbol(BitFile.output, bit),
+            active: runtime.output(bit),
+            activeColor: AppColors.lampOn,
             icon: Icon(Icons.lightbulb,
                 size: 32,
-                color: runtime.output(bit) ? AppColors.lampOn : AppColors.lampOff),
+                color: runtime.output(bit) ? AppColors.lampOn : AppColors.lampOff,
+                shadows: runtime.output(bit)
+                    ? const [Shadow(color: AppColors.lampOn, blurRadius: 14)]
+                    : null),
           ),
       ]),
-      const SizedBox(height: 16),
-      Text('Entradas analógicas (I:$analogInputSlot)', style: title),
-      const SizedBox(height: 8),
-      for (var ch = 0; ch < analogInputChannels; ch++) AnalogInputTile(channel: ch),
-      const SizedBox(height: 10),
-      Text('Saídas analógicas (O:$analogOutputSlot)', style: title),
-      const SizedBox(height: 8),
-      for (var ch = 0; ch < analogOutputChannels; ch++) AnalogOutputTile(channel: ch),
+    ]);
+  }
+}
+
+/// Desktop-style tab strip switching between digital and analog I/O.
+class _IoTabs extends StatelessWidget {
+  const _IoTabs({required this.tab, required this.onSelect});
+
+  final IoPanelTab tab;
+  final ValueChanged<IoPanelTab> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget button(IoPanelTab value, String label, String key) {
+      final selected = tab == value;
+      return Expanded(
+        child: InkWell(
+          key: ValueKey(key),
+          onTap: () => onSelect(value),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: selected ? Colors.white : Colors.black12,
+              border: Border(
+                top: BorderSide(color: selected ? AppColors.energized : Colors.black26, width: 2),
+                left: const BorderSide(color: Colors.black26),
+                right: const BorderSide(color: Colors.black26),
+              ),
+            ),
+            child: Text(label,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+          ),
+        ),
+      );
+    }
+
+    return Row(children: [
+      button(IoPanelTab.digital, 'Digitais', 'io-tab-digital'),
+      button(IoPanelTab.analog, 'Analógicas', 'io-tab-analog'),
     ]);
   }
 }
@@ -99,6 +159,7 @@ class _Tile extends StatelessWidget {
     required this.symbol,
     required this.icon,
     this.active = false,
+    this.activeColor = AppColors.energized,
     this.footer,
   });
 
@@ -106,6 +167,7 @@ class _Tile extends StatelessWidget {
   final String? symbol;
   final Widget icon;
   final bool active;
+  final Color activeColor;
   final Widget? footer;
 
   @override
@@ -115,8 +177,8 @@ class _Tile extends StatelessWidget {
       width: 74,
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       decoration: BoxDecoration(
-        color: active ? AppColors.energized.withValues(alpha: 0.25) : null,
-        border: Border.all(color: active ? AppColors.energized : Colors.black26),
+        color: active ? activeColor.withValues(alpha: 0.25) : null,
+        border: Border.all(color: active ? activeColor : Colors.black26, width: active ? 2 : 1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [

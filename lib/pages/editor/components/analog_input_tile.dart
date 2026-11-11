@@ -5,6 +5,7 @@ import 'package:plc_core/plc_core.dart';
 import '../../../controllers/analog_io.controller.dart';
 import '../../../controllers/program.controller.dart';
 import '../../../controllers/runtime.controller.dart';
+import 'analog_chart.dart';
 import 'analog_format.dart';
 
 /// One analog input channel (I:1.n): range selector, slider in V / mA and the raw count.
@@ -16,6 +17,7 @@ class AnalogInputTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final range = ref.watch(analogIoProvider.select((s) => s.inputRanges[channel]));
+    final noise = ref.watch(analogIoProvider.select((s) => s.noiseEnabled[channel]));
     final raw = ref.watch(runtimeProvider.select((s) => s.analogInputs[channel]));
     final address = 'I:$analogInputSlot.$channel';
     final symbol = ref.watch(programProvider.select((s) => s.program.symbols[address]));
@@ -25,11 +27,30 @@ class AnalogInputTile extends ConsumerWidget {
       address: address,
       symbol: symbol,
       raw: raw,
-      selector: AnalogRangeSelector(
-        key: ValueKey('analog-in-range-$channel'),
-        range: range,
-        onChanged: (r) => controller.setInputRange(channel, r),
+      chart: AnalogWaveformChart(
+        value: physical,
+        min: 0,
+        max: range.maxPhysical,
+        unit: range.unit,
+        color: Colors.cyanAccent,
       ),
+      selector: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          key: ValueKey('analog-in-noise-$channel'),
+          tooltip: 'Ruído de sinal (histerese)',
+          icon: Icon(Icons.graphic_eq, color: noise ? Colors.orange : Colors.grey),
+          iconSize: 18,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+          onPressed: () => controller.toggleNoise(channel),
+        ),
+        AnalogRangeSelector(
+          key: ValueKey('analog-in-range-$channel'),
+          range: range,
+          onChanged: (r) => controller.setInputRange(channel, r),
+        ),
+      ]),
       body: Row(children: [
         Expanded(
           child: Slider(

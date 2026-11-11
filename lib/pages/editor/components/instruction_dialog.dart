@@ -147,8 +147,12 @@ class _InstructionDialogState extends State<_InstructionDialog> {
     final preset = int.tryParse(_preset.text.trim());
     final presetOk = !(_isTimer || _isCounter) || (preset != null && preset >= 0 && preset <= maxPreset);
     String? address;
+    var addressText = _address.text.trim();
+    // Bit instructions: a word or analog channel without a bit (I:1.0, N7:0) means bit 0.
+    final isBit = !_isWord && !_isCompare && !_isLimit && !_isTimer && !_isCounter && widget.mnemonic != 'RES';
+    if (isBit && addressText.isNotEmpty && !addressText.contains('/')) addressText = '$addressText/0';
     try {
-      address = Instruction.create(widget.mnemonic, _address.text, preset: presetOk ? preset ?? 0 : 0).target;
+      address = Instruction.create(widget.mnemonic, addressText, preset: presetOk ? preset ?? 0 : 0).target;
     } on FormatException {
       address = null;
     }
@@ -188,6 +192,9 @@ class _InstructionDialogState extends State<_InstructionDialog> {
     );
   }
 
+  /// Enter in a source/mask field: moves on while the address is still empty, else submits.
+  void _submitOrNext() => _address.text.trim().isEmpty ? FocusScope.of(context).nextFocus() : _submit();
+
   /// The operand typed in [text], or null when it is invalid; skipped fields give null too.
   static Operand? _operand(String text, bool used, {bool mask = false, bool constant = true}) {
     if (!used) return null;
@@ -211,7 +218,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
           hintText: 'N7:0 ou 100',
           errorText: _sourceError,
         ),
-        onSubmitted: (_) => _submit(),
+        onSubmitted: (_) => _submitOrNext(),
       );
 
   Widget _maskField() => TextField(
@@ -223,7 +230,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
           hintText: _isLimit || _isMath ? 'N7:0 ou 100' : '00FFh',
           errorText: _maskError,
         ),
-        onSubmitted: (_) => _submit(),
+        onSubmitted: (_) => _submitOrNext(),
       );
 
   Widget _offsetField() => TextField(
@@ -250,7 +257,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: Text('Instrução ${widget.mnemonic}'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
+        content: SizedBox(width: 400, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           // Fields in the order RSLogix shows them.
           if (_isCompare) ...[_addressField(), _sourceField()]
           else if (_isLimit) ...[_sourceField(), _addressField(), _maskField()]
@@ -288,7 +295,7 @@ class _InstructionDialogState extends State<_InstructionDialog> {
             maxLines: 4,
             decoration: const InputDecoration(labelText: 'Descrição (opcional)'),
           ),
-        ]),
+        ]))),
         actions: [
           if (widget.canDelete)
             TextButton(

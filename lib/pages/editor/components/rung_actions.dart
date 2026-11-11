@@ -4,6 +4,7 @@ import 'package:plc_core/plc_core.dart';
 
 import '../../../controllers/element_edit.controller.dart';
 import '../../../controllers/rung_edit.controller.dart';
+import '../../../models/drag_data.model.dart';
 import '../../../theme/ladder_assets.dart';
 import 'instruction_dialog.dart';
 
@@ -34,14 +35,39 @@ class RungActions {
     );
   }
 
-  Future<void> dropOnSlot(List<int> slot, String tool) async {
-    final element = await _newElement(tool);
-    if (element != null) ref.read(elementEditProvider.notifier).insertElement(rung, slot, element);
+  Future<void> dropOnSlot(List<int> slot, RungDragData data) async {
+    final edit = ref.read(elementEditProvider.notifier);
+    if (data.isMove) {
+      edit.moveElement(data.sourceRung!, data.sourcePath!, rung, slot);
+      return;
+    }
+    final element = await _newElement(data.tool);
+    if (element != null) edit.insertElement(rung, slot, element);
   }
 
-  Future<void> dropOnNewPath(List<int> branchPath, String tool) async {
-    final element = await _newElement(tool);
-    if (element != null) ref.read(elementEditProvider.notifier).addPath(rung, branchPath, element);
+  /// Drops [data] in parallel with the element at [targetPath], wrapping both in a branch.
+  Future<void> dropOnParallel(List<int> targetPath, RungDragData data) async {
+    final edit = ref.read(elementEditProvider.notifier);
+    if (data.isMove) {
+      edit.moveIntoParallel(data.sourceRung!, data.sourcePath!, rung, targetPath);
+      return;
+    }
+    if (data.tool == LadderAssets.branch) {
+      edit.wrapInBranch(rung, targetPath);
+      return;
+    }
+    final element = await _newElement(data.tool);
+    if (element != null) edit.wrapInBranch(rung, targetPath, element);
+  }
+
+  Future<void> dropOnNewPath(List<int> branchPath, RungDragData data) async {
+    final edit = ref.read(elementEditProvider.notifier);
+    if (data.isMove) {
+      edit.moveToNewPath(data.sourceRung!, data.sourcePath!, rung, branchPath);
+      return;
+    }
+    final element = await _newElement(data.tool);
+    if (element != null) edit.addPath(rung, branchPath, element);
   }
 
   Future<void> editInstruction(List<int> path, Instruction ins) async {

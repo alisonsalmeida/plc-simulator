@@ -7,6 +7,7 @@ import 'package:plc_simulator/controllers/data_edit.controller.dart';
 import 'package:plc_simulator/controllers/program.controller.dart';
 import 'package:plc_simulator/controllers/runtime.controller.dart';
 import 'package:plc_simulator/core/examples.dart';
+import 'package:plc_simulator/pages/editor/components/analog_chart.dart';
 import 'package:plc_simulator/pages/editor/components/io_panel.dart';
 
 int analogExample() => ladderExamples.indexWhere((e) => e.name.startsWith('Analógico'));
@@ -89,6 +90,68 @@ void main() {
     runtime.stop();
     await tester.pump();
     expect(container.read(runtimeProvider).analogOutputs, [0, 0]);
+  });
+
+  testWidgets('noise button toggles, makes the count fluctuate and off restores the base', (tester) async {
+    final container = await pumpPanel(tester);
+    final runtime = container.read(runtimeProvider.notifier);
+    container.read(analogIoProvider.notifier).setInputPhysical(1, 5); // mid scale, 0-10 V
+    await tester.pump();
+    final base = container.read(runtimeProvider).analogInputs[1];
+    final button = find.byKey(const ValueKey('analog-in-noise-1'));
+    await tester.ensureVisible(button);
+    expect(container.read(analogIoProvider).noiseEnabled[1], isFalse);
+
+    await tester.tap(button);
+    await tester.pump();
+    expect(container.read(analogIoProvider).noiseEnabled[1], isTrue);
+
+    final seen = <int>{};
+    for (var i = 0; i < 20; i++) {
+      runtime.step();
+      await tester.pump();
+      final v = container.read(runtimeProvider).analogInputs[1];
+      expect((v - base).abs(), lessThanOrEqualTo(500));
+      seen.add(v);
+    }
+    expect(seen.length, greaterThan(1));
+
+    await tester.tap(button);
+    await tester.pump();
+    expect(container.read(analogIoProvider).noiseEnabled[1], isFalse);
+    expect(container.read(runtimeProvider).analogInputs[1], base);
+    runtime.step();
+    await tester.pump();
+    expect(container.read(runtimeProvider).analogInputs[1], base);
+  });
+
+  testWidgets('tabs switch between digital and analog I/O', (tester) async {
+    await pumpPanel(tester);
+    expect(find.text('Entradas analógicas (I:1)'), findsOneWidget);
+    expect(find.text('Entradas (I:0)'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('io-tab-digital')));
+    await tester.pump();
+    expect(find.text('Entradas (I:0)'), findsOneWidget);
+    expect(find.text('Saídas (O:0)'), findsOneWidget);
+    expect(find.text('Entradas analógicas (I:1)'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('io-tab-analog')));
+    await tester.pump();
+    expect(find.text('Saídas analógicas (O:2)'), findsOneWidget);
+  });
+
+  testWidgets('chart toggle expands the waveform on input and output tiles', (tester) async {
+    await pumpPanel(tester);
+    expect(find.byType(AnalogWaveformChart), findsNothing);
+    for (final address in ['I:1.0', 'O:2.0']) {
+      final toggle = find.byKey(ValueKey('$address-chart-toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pump();
+    }
+    expect(find.byType(AnalogWaveformChart), findsNWidgets(2));
+    await tester.tap(find.byKey(const ValueKey('I:1.0-chart-toggle')));
+    await tester.pump();
+    expect(find.byType(AnalogWaveformChart), findsOneWidget);
   });
 
   testWidgets('Data Files writes to I:1.x go through the analog input image', (tester) async {

@@ -20,4 +20,18 @@ class IoPanelController extends Notifier<IoPanelState> {
   }
 }
 
-final ioPanelProvider = NotifierProvider<IoPanelController, IoPanelState>(IoPanelController.new);
+/// Active I/O panel tab; resets to "analog" when the program references analog addresses.
+class IoPanelTabController extends Notifier<IoPanelTab> {
+  @override
+  IoPanelTab build() {
+    final symbols = ref.watch(programProvider.select((s) => s.program.symbols));
+    final usesAnalog = symbols.keys.any((a) => a.startsWith('I:1.') || a.startsWith('O:2.'));
+    return usesAnalog ? IoPanelTab.analog : IoPanelTab.digital;
+  }
+
+  void select(IoPanelTab tab) => state = tab;
+}
+
+final ioPanelTabProvider = NotifierProvider<IoPanelTabController, IoPanelTab>(IoPanelTabController.new);
+
+final ioPanelProvider =NotifierProvider<IoPanelController, IoPanelState>(IoPanelController.new);

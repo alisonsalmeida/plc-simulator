@@ -6,6 +6,13 @@
 - [ ] Compile the program to IR/bytecode instead of interpreting the tree (spec M1)
 
 ## Done
+- [x] Parallel branch placement (drop contacts in parallel to create or expand branches easily)
+- [x] Move already-placed instructions and branches on rungs (drag and drop to reposition)
+- [x] Visual drop target points on the rung wire while dragging instructions; drop anywhere on stretchy wire
+- [x] Instruction dialog fix: scrollable layout, analog bit address auto-normalization (e.g. I:1.0 -> I:1.0/0), Enter navigates fields
+- [x] Vibrant active I/O green and full-energized rung wire colorization (green 2px rail-to-rail)
+- [x] Digital and Analog I/O tabs in IoPanel with expandable real-time waveform charts on analog channels
+- [x] Analog signal noise generator with enable/disable toggle for hysteresis demonstration
 - [x] Analog I/O: input sliders in the I/O panel (volts / mA) and analog output example (AO module, desktop app)
 - [x] Desktop app target instead of web (`flutter build linux` verified)
 - [x] Bitwise logic instructions: AND, OR, XOR, NOT (Move/Logical tab)

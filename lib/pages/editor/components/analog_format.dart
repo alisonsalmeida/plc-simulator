@@ -28,7 +28,7 @@ class AnalogRangeSelector extends StatelessWidget {
 }
 
 /// Frame, address line and raw count shared by the analog tiles; [body] is the control.
-class AnalogTileFrame extends StatelessWidget {
+class AnalogTileFrame extends StatefulWidget {
   const AnalogTileFrame({
     super.key,
     required this.address,
@@ -36,6 +36,7 @@ class AnalogTileFrame extends StatelessWidget {
     required this.selector,
     required this.body,
     required this.raw,
+    required this.chart,
   });
 
   final String address;
@@ -44,8 +45,23 @@ class AnalogTileFrame extends StatelessWidget {
   final Widget body;
   final int raw;
 
+  /// Signal chart shown below the controls when the toggle is expanded.
+  final Widget chart;
+
+  @override
+  State<AnalogTileFrame> createState() => _AnalogTileFrameState();
+}
+
+class _AnalogTileFrameState extends State<AnalogTileFrame> {
+  bool _expanded = false;
+
   @override
   Widget build(BuildContext context) {
+    final address = widget.address;
+    final symbol = widget.symbol;
+    final selector = widget.selector;
+    final body = widget.body;
+    final raw = widget.raw;
     final small = Theme.of(context).textTheme.labelSmall;
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -60,9 +76,20 @@ class AnalogTileFrame extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(child: Text(symbol ?? '', style: small, maxLines: 1, overflow: TextOverflow.ellipsis)),
           selector,
+          IconButton(
+            key: ValueKey('$address-chart-toggle'),
+            tooltip: 'Ver gráfico de sinal',
+            icon: Icon(Icons.show_chart, color: _expanded ? Colors.teal : Colors.grey),
+            iconSize: 18,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            onPressed: () => setState(() => _expanded = !_expanded),
+          ),
         ]),
         body,
         Text('bruto: $raw', style: small),
+        if (_expanded) Padding(padding: const EdgeInsets.only(top: 4), child: widget.chart),
       ]),
     );
   }

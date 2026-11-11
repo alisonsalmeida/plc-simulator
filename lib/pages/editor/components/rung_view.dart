@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plc_core/plc_core.dart';
 
+import '../../../controllers/drag_tool.controller.dart';
 import '../../../controllers/program.controller.dart';
+import '../../../models/drag_data.model.dart';
 import '../../../models/runtime_state.model.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/ladder_assets.dart';
@@ -83,16 +86,32 @@ double _seriesTop(List<RungElement> elements, Program program) {
   return top;
 }
 
-Widget _rail() => const SizedBox(
+Widget _rail([Color color = LadderStyle.wire]) => SizedBox(
       width: _railW,
-      child: ColoredBox(color: LadderStyle.wire),
+      child: ColoredBox(color: color),
     );
 
-/// Both power rails over the full height of the enclosing [Stack].
-List<Widget> _rails() => [
-      Positioned(left: rungGutterW, top: 0, bottom: 0, width: _railW, child: _rail()),
-      Positioned(right: 0, top: 0, bottom: 0, width: _railW, child: _rail()),
-    ];
+/// Horizontal wire segment at [wireY] spanning the width of the enclosing [Stack]; thicker
+/// and green when [lit] (the rung is energized).
+Widget _hline(double wireY, {required bool lit, double? left, double? right, double? width}) =>
+    Positioned(
+      left: left,
+      right: right,
+      width: width,
+      top: lit ? wireY - 0.5 : wireY,
+      height: lit ? 2 : 1,
+      child: ColoredBox(color: lit ? LadderStyle.energized : LadderStyle.wire),
+    );
+
+/// Both power rails over the full height of the enclosing [Stack]; green when [lit].
+List<Widget> _rails({bool lit = false}) {
+  final color = lit ? LadderStyle.energized : LadderStyle.wire;
+  final w = lit ? 2.0 : _railW;
+  return [
+    Positioned(left: rungGutterW, top: 0, bottom: 0, width: w, child: _rail(color)),
+    Positioned(right: 0, top: 0, bottom: 0, width: w, child: _rail(color)),
+  ];
+}
 
 /// One rung: optional title and comment bands, then the ladder between the two power rails.
 /// The rung number sits in the gutter on the wire; tapping it selects the rung.
@@ -118,12 +137,17 @@ class RungView extends ConsumerWidget {
     final editable = !online;
     final actions = RungActions(context, ref, index, program);
     final trace = index < runtime.powerFlow.length ? runtime.powerFlow[index] : const <bool>[];
+    // Power reaches the outputs when the last instruction in traversal order passes power.
+    final lit = !editable && runtime.data.isNotEmpty && trace.isNotEmpty && trace.last;
+    final dragTool = ref.watch(dragToolProvider);
     final ladder = _Ladder(
       actions: actions,
+      dragTool: dragTool,
       program: program,
       runtime: runtime,
       trace: trace,
       editable: editable,
+      lit: lit,
     );
     final top = _seriesTop(rung.elements, program);
     final wireY = top + _glyphH / 2;
@@ -142,7 +166,7 @@ class RungView extends ConsumerWidget {
           ),
         ),
       ),
-      ..._rails(),
+      ..._rails(lit: lit),
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (rung.title.isNotEmpty)
           Padding(
@@ -344,17 +368,25 @@ class _BracketsPainter extends CustomPainter {
 class _Ladder {
   _Ladder({
     required this.actions,
+    required this.dragTool,
     required this.program,
     required this.runtime,
     required this.trace,
     required this.editable,
+    required this.lit,
   });
 
   final RungActions actions;
+
+  /// The toolbar tool being dragged, if any: slots and wires then show their drop points.
+  final String? dragTool;
   final Program program;
   final RuntimeState runtime;
   final List<bool> trace;
   final bool editable;
+
+  /// Whether the whole rung is energized (power reaches its outputs).
+  final bool lit;
 
   int _next = 0;
 
@@ -392,31 +424,45 @@ class _Ladder {
     final top = _seriesTop(rung.elements, program);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: _series(rung.elements, const [], tail, top),
+      children: _series(rung.elements, const [], tail, top, lit: lit),
     );
   }
 
   bool _isOutput(RungElement e) => e is Instruction && e.isOutput;
 
   /// Slots and elements of one series, [top] above the wire; the stretchy wire goes before
-  /// slot [fillAt] (trailing outputs stay right-aligned).
-  List<Widget> _series(List<RungElement> elements, List<int> prefix, int fillAt, double top) {
+  /// slot [fillAt] (trailing outputs stay right-aligned). [lit] paints the wires green; only
+  /// the top-level series is lit, as branch paths may not all carry power.
+  List<Widget> _series(List<RungElement> elements, List<int> prefix, int fillAt, double top,
+      {bool lit = false}) {
     final children = <Widget>[];
     for (var i = 0; i <= elements.length; i++) {
-      if (i == fillAt) children.add(Expanded(child: _Wire(wireY: top + _glyphH / 2)));
+      if (i == fillAt) {
+        children.add(Expanded(
+          child: _Wire(
+            wireY: top + _glyphH / 2,
+            lit: lit,
+            enabled: editable,
+            dragTool: dragTool,
+            onDrop: (data) => actions.dropOnSlot([...prefix, fillAt], data),
+          ),
+        ));
+      }
       final path = [...prefix, i];
       children.add(_Slot(
         wireY: top + _glyphH / 2,
+        lit: lit,
         height: top + _glyphH + _lineH,
         enabled: editable,
-        onDrop: (tool) => actions.dropOnSlot(path, tool),
+        dragTool: dragTool,
+        onDrop: (data) => actions.dropOnSlot(path, data),
       ));
       if (i == elements.length) break;
       switch (elements[i]) {
         case final Instruction ins:
           final out = _consume();
           final onTap = editable ? () => actions.editInstruction(path, ins) : null;
-          children.add(switch (ins) {
+          final cell = switch (ins) {
             _ when _isBox(ins) => BoxCell(
                 instruction: ins,
                 above: top - (boxWireY - _glyphH / 2),
@@ -425,9 +471,11 @@ class _Ladder {
                 runtime: runtime,
                 online: !editable && runtime.data.isNotEmpty,
                 powered: out,
+                lit: lit,
                 onTap: onTap,
               ),
             _ => _Cell(
+                lit: lit,
                 instruction: ins,
                 symbol: program.symbolOf(ins),
                 description: program.descriptionOf(ins),
@@ -435,12 +483,30 @@ class _Ladder {
                 energized: _isTrue(ins, out),
                 onTap: onTap,
               ),
-          });
+          };
+          children.add(editable ? _placed(cell, ins, path) : cell);
         case final Branch branch:
           children.add(_branch(branch, path, top));
       }
     }
     return children;
+  }
+
+  /// Makes a placed instruction draggable (to move it) and a target for "in parallel" drops.
+  Widget _placed(Widget cell, Instruction ins, List<int> path) {
+    final dragNotifier = actions.ref.read(dragToolProvider.notifier);
+    return _Placed(
+      data: RungDragData(tool: ins.mnemonic, sourceRung: actions.rung, sourcePath: path),
+      instruction: ins,
+      dragTool: dragTool,
+      onDragStarted: () => dragNotifier.start(ins.mnemonic),
+      onDragEnd: dragNotifier.stop,
+      willAcceptParallel: (d) =>
+          d.tool != LadderAssets.rung &&
+          !(d.isMove && d.sourceRung == actions.rung && listEquals(d.sourcePath, path)),
+      onParallelDrop: (d) => actions.dropOnParallel(path, d),
+      child: cell,
+    );
   }
 
   Widget _branch(Branch branch, List<int> path, double top) {
@@ -458,7 +524,7 @@ class _Ladder {
             series: branch.paths[k],
             path: [...path, k],
           ),
-        if (editable) _AddPath(onDrop: (tool) => actions.dropOnNewPath(path, tool)),
+        if (editable) _AddPath(onDrop: (data) => actions.dropOnNewPath(path, data)),
       ]),
     );
   }
@@ -486,20 +552,153 @@ class _Ladder {
   }
 }
 
-/// Horizontal wire at [wireY]; give it a bounded width (Expanded/SizedBox).
-class _Wire extends StatelessWidget {
-  const _Wire({required this.wireY});
+/// A placed instruction: draggable to another place, with a "+ paralelo" drop strip at its
+/// bottom while a tool or another element is dragged.
+class _Placed extends StatelessWidget {
+  const _Placed({
+    required this.child,
+    required this.data,
+    required this.instruction,
+    required this.dragTool,
+    required this.onDragStarted,
+    required this.onDragEnd,
+    required this.willAcceptParallel,
+    required this.onParallelDrop,
+  });
 
-  final double wireY;
+  final Widget child;
+  final RungDragData data;
+  final Instruction instruction;
+  final String? dragTool;
+  final VoidCallback onDragStarted;
+  final VoidCallback onDragEnd;
+  final bool Function(RungDragData data) willAcceptParallel;
+  final void Function(RungDragData data) onParallelDrop;
 
   @override
-  Widget build(BuildContext context) => Align(
-        alignment: Alignment.topCenter,
-        child: Padding(
-          padding: EdgeInsets.only(top: wireY),
-          child: Container(height: 1, color: LadderStyle.wire),
+  Widget build(BuildContext context) {
+    final ins = instruction;
+    final draggable = Draggable<RungDragData>(
+      data: data,
+      onDragStarted: onDragStarted,
+      onDragEnd: (_) => onDragEnd(),
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.8,
+          child: Container(
+            width: _cellW,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(color: Colors.white, border: Border.all(color: LadderStyle.wire)),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(ins.target, textScaler: TextScaler.noScaling, style: LadderStyle.text),
+              ladderSymbol(ins.mnemonic, color: LadderStyle.wire, width: _glyphW, height: _glyphH),
+            ]),
+          ),
         ),
-      );
+      ),
+      childWhenDragging: Opacity(opacity: 0.35, child: child),
+      child: child,
+    );
+    if (dragTool == null || dragTool == LadderAssets.rung) return draggable;
+    const green = Color(0xFF00E676);
+    return Stack(children: [
+      draggable,
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: _lineH + 2,
+        child: DragTarget<RungDragData>(
+          onWillAcceptWithDetails: (d) => willAcceptParallel(d.data),
+          onAcceptWithDetails: (d) => onParallelDrop(d.data),
+          builder: (_, hovering, _) => Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: green.withValues(alpha: hovering.isEmpty ? 0.12 : 0.5),
+              border: Border.all(color: hovering.isEmpty ? const Color(0xFF00A040) : green, width: hovering.isEmpty ? 1 : 2),
+            ),
+            child: Text(
+              '+ paralelo',
+              textScaler: TextScaler.noScaling,
+              style: LadderStyle.text.copyWith(fontSize: 9, color: Colors.black87),
+            ),
+          ),
+        ),
+      ),
+    ]);
+  }
+}
+
+/// Horizontal wire at [wireY]; give it a bounded width (Expanded/SizedBox). When [onDrop] is
+/// set and the rung is [enabled], dropping a tool anywhere on it inserts at the wire's slot.
+class _Wire extends StatelessWidget {
+  const _Wire({required this.wireY, this.lit = false, this.enabled = false, this.dragTool, this.onDrop});
+
+  final double wireY;
+  final bool lit;
+  final bool enabled;
+  final String? dragTool;
+  final void Function(RungDragData data)? onDrop;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: EdgeInsets.only(top: lit ? wireY - 0.5 : wireY),
+        child: Container(
+          height: lit ? 2 : 1,
+          color: lit ? LadderStyle.energized : LadderStyle.wire,
+        ),
+      ),
+    );
+    final drop = onDrop;
+    if (!enabled || drop == null) return line;
+    return DragTarget<RungDragData>(
+      onWillAcceptWithDetails: (d) => d.data.tool != LadderAssets.rung,
+      onAcceptWithDetails: (d) => drop(d.data),
+      builder: (_, hovering, _) => SizedBox(
+        height: wireY + 14,
+        child: Stack(children: [
+          Positioned.fill(child: line),
+          if (dragTool != null && dragTool != LadderAssets.rung)
+            _dropMarker(context, wireY: wireY, hovering: hovering.isNotEmpty, width: null),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Drop point on the wire while a tool is dragged: a dot, or a highlight box when hovered.
+/// A null [width] centers it in the available width; otherwise it fills [width].
+Widget _dropMarker(BuildContext context, {required double wireY, required bool hovering, required double? width}) {
+  final primary = Theme.of(context).colorScheme.primary;
+  if (hovering) {
+    final box = DecoratedBox(
+      decoration: BoxDecoration(color: primary.withValues(alpha: 0.35), border: Border.all(color: primary)),
+    );
+    return width == null
+        ? Positioned(left: 0, right: 0, top: wireY - 14, height: 28, child: box)
+        : Positioned(left: 1, right: 1, top: wireY - 14, height: 28, child: box);
+  }
+  const dot = DecoratedBox(
+    decoration: BoxDecoration(
+      color: Color(0xFF00E676),
+      shape: BoxShape.circle,
+      border: Border.fromBorderSide(BorderSide(color: Color(0xFF00A040), width: 1.5)),
+      boxShadow: [BoxShadow(color: Color(0x6600E676), blurRadius: 4, spreadRadius: 1)],
+    ),
+  );
+  return width == null
+      ? Positioned(
+          left: 0,
+          right: 0,
+          top: wireY - 5,
+          height: 10,
+          child: Center(child: SizedBox(width: 10, height: 10, child: dot)),
+        )
+      : Positioned(left: (width - 10) / 2, top: wireY - 5, width: 10, height: 10, child: dot);
 }
 
 /// Vertical connector at the side of a branch path: [up] from the row top to the wire,
@@ -535,39 +734,31 @@ class _Slot extends StatelessWidget {
     required this.height,
     required this.enabled,
     required this.onDrop,
+    this.dragTool,
+    this.lit = false,
   });
 
   final double wireY;
   final double height;
   final bool enabled;
-  final void Function(String tool) onDrop;
+  final bool lit;
+  final String? dragTool;
+  final void Function(RungDragData data) onDrop;
 
   @override
   Widget build(BuildContext context) {
-    final wire = Positioned(left: 0, right: 0, top: wireY, height: 1, child: _rail());
+    final wire = _hline(wireY, lit: lit, left: 0, right: 0);
     if (!enabled) return SizedBox(width: _slotW, height: height, child: Stack(children: [wire]));
-    final primary = Theme.of(context).colorScheme.primary;
-    return DragTarget<String>(
-      onWillAcceptWithDetails: (d) => d.data != LadderAssets.rung,
+    return DragTarget<RungDragData>(
+      onWillAcceptWithDetails: (d) => d.data.tool != LadderAssets.rung,
       onAcceptWithDetails: (d) => onDrop(d.data),
       builder: (_, hovering, _) => SizedBox(
         width: _slotW,
         height: height,
         child: Stack(children: [
           wire,
-          if (hovering.isNotEmpty)
-            Positioned(
-              left: 1,
-              right: 1,
-              top: wireY - 14,
-              height: 28,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.35),
-                  border: Border.all(color: primary),
-                ),
-              ),
-            ),
+          if (hovering.isNotEmpty || (dragTool != null && dragTool != LadderAssets.rung))
+            _dropMarker(context, wireY: wireY, hovering: hovering.isNotEmpty, width: _slotW),
         ]),
       ),
     );
@@ -588,8 +779,8 @@ class RungGap extends StatelessWidget {
       ..._rails(),
     ]);
     if (!enabled) return SizedBox(height: 8, child: content);
-    return DragTarget<String>(
-      onWillAcceptWithDetails: (d) => d.data == LadderAssets.rung,
+    return DragTarget<RungDragData>(
+      onWillAcceptWithDetails: (d) => d.data.tool == LadderAssets.rung,
       onAcceptWithDetails: (_) => onDrop(),
       builder: (_, hovering, _) => SizedBox(
         height: 8,
@@ -607,13 +798,13 @@ class RungGap extends StatelessWidget {
 class _AddPath extends StatelessWidget {
   const _AddPath({required this.onDrop});
 
-  final void Function(String tool) onDrop;
+  final void Function(RungDragData data) onDrop;
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    return DragTarget<String>(
-      onWillAcceptWithDetails: (d) => d.data != LadderAssets.rung,
+    return DragTarget<RungDragData>(
+      onWillAcceptWithDetails: (d) => d.data.tool != LadderAssets.rung,
       onAcceptWithDetails: (d) => onDrop(d.data),
       builder: (_, hovering, _) => Container(
         height: 18,
@@ -643,6 +834,7 @@ class _Cell extends StatelessWidget {
     required this.top,
     required this.energized,
     required this.onTap,
+    this.lit = false,
   });
 
   final Instruction instruction;
@@ -650,6 +842,7 @@ class _Cell extends StatelessWidget {
   final String? description;
   final double top;
   final bool energized;
+  final bool lit;
   final VoidCallback? onTap;
 
   @override
@@ -696,8 +889,8 @@ class _Cell extends StatelessWidget {
             SizedBox(
               height: _glyphH,
               child: Stack(children: [
-                Positioned(left: 0, width: side, top: wireY, height: 1, child: _rail()),
-                Positioned(right: 0, width: side, top: wireY, height: 1, child: _rail()),
+                _hline(wireY, lit: lit, left: 0, width: side),
+                _hline(wireY, lit: lit, right: 0, width: side),
                 if (isRes)
                   Positioned(
                     left: side,
@@ -722,7 +915,7 @@ class _Cell extends StatelessWidget {
                     top: 0,
                     child: ladderSymbol(
                       ins.mnemonic,
-                      color: LadderStyle.wire,
+                      color: energized ? LadderStyle.energized : LadderStyle.wire,
                       width: _glyphW,
                       height: _glyphH,
                     ),
@@ -751,22 +944,35 @@ class _Highlight extends StatelessWidget {
         child: coil
             ? Align(
                 child: Container(
-                  width: 18,
-                  height: 22,
+                  width: 20,
+                  height: 20,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: LadderStyle.energized, width: 3),
+                    color: LadderStyle.energized.withValues(alpha: 0.2),
                   ),
                 ),
               )
             : Stack(children: [
-                for (final x in const [8.5, 16.5])
+                for (final x in const [5.0, 17.0])
                   Positioned(
                     left: x,
                     top: 2,
-                    width: 3,
+                    width: 6.0,
                     height: _glyphH - 4,
-                    child: const ColoredBox(color: LadderStyle.energized),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: LadderStyle.energized,
+                        borderRadius: BorderRadius.circular(1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: LadderStyle.energized.withValues(alpha: 0.5),
+                            blurRadius: 2,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
               ]),
       );

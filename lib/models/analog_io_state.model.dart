@@ -11,6 +11,7 @@ class AnalogIoState {
       AnalogRange.voltage,
     ],
     this.outputRanges = const [AnalogRange.voltage, AnalogRange.current],
+    this.noiseEnabled = const [false, false, false, false],
   });
 
   /// One range per input channel I:1.0 … I:1.3.
@@ -19,9 +20,17 @@ class AnalogIoState {
   /// One range per output channel O:2.0, O:2.1.
   final List<AnalogRange> outputRanges;
 
-  AnalogIoState copyWith({List<AnalogRange>? inputRanges, List<AnalogRange>? outputRanges}) =>
+  /// Whether the simulated sensor noise is on, per input channel.
+  final List<bool> noiseEnabled;
+
+  AnalogIoState copyWith({
+    List<AnalogRange>? inputRanges,
+    List<AnalogRange>? outputRanges,
+    List<bool>? noiseEnabled,
+  }) =>
       AnalogIoState(
         inputRanges: inputRanges ?? this.inputRanges,
         outputRanges: outputRanges ?? this.outputRanges,
+        noiseEnabled: noiseEnabled ?? this.noiseEnabled,
       );
 }

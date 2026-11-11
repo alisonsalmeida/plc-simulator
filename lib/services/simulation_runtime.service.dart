@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:plc_core/plc_core.dart';
 
@@ -16,6 +17,15 @@ class SimulationRuntimeService implements IRuntimeService {
   final _clock = Stopwatch();
   Duration _lastScanAt = Duration.zero;
   RuntimeState _state = const RuntimeState();
+
+  /// Slider values before noise, and which channels have simulated sensor noise on.
+  final _baseAnalogInputs = List<int>.filled(analogInputChannels, 0);
+  final _noiseEnabled = List<bool>.filled(analogInputChannels, false);
+  final _random = Random();
+
+  /// Full scale of an analog count and the noise amplitude (about 2 % of it).
+  static const _analogMax = 32767;
+  static const _noiseAmplitude = 500;
 
   /// Files whose contents survive editing the program.
   static const _keptFiles = [BitFile.bit, BitFile.timer, BitFile.counter, BitFile.integer];
@@ -87,12 +97,28 @@ class SimulationRuntimeService implements IRuntimeService {
   @override
   void setAnalogInput(int channel, int raw) {
     final value = raw & 0xFFFF;
-    _engine!.analogInputImage[channel] = value;
-    _engine!.memory.setWord(BitFile.input, 1 + channel, value);
+    _baseAnalogInputs[channel] = value;
+    if (!_noiseEnabled[channel]) _applyAnalogInput(channel, value);
     _emit(_state.copyWith(
       analogInputs: [..._engine!.analogInputImage],
       data: _snapshot(),
     ));
+  }
+
+  @override
+  void setAnalogNoise(int channel, bool enabled) {
+    _noiseEnabled[channel] = enabled;
+    if (enabled) return;
+    _applyAnalogInput(channel, _baseAnalogInputs[channel]);
+    _emit(_state.copyWith(
+      analogInputs: [..._engine!.analogInputImage],
+      data: _snapshot(),
+    ));
+  }
+
+  void _applyAnalogInput(int channel, int value) {
+    _engine!.analogInputImage[channel] = value;
+    _engine!.memory.setWord(BitFile.input, 1 + channel, value);
   }
 
   @override
@@ -144,8 +170,14 @@ class SimulationRuntimeService implements IRuntimeService {
   }
 
   void _scan(Duration elapsed) {
+    for (var c = 0; c < analogInputChannels; c++) {
+      if (!_noiseEnabled[c]) continue;
+      final jitter = _random.nextInt(2 * _noiseAmplitude + 1) - _noiseAmplitude;
+      _applyAnalogInput(c, (_baseAnalogInputs[c] + jitter).clamp(0, _analogMax));
+    }
     final trace = _engine!.scan(elapsed: elapsed);
     _emit(_state.copyWith(
+      analogInputs: [..._engine!.analogInputImage],
       outputs: _engine!.outputImage,
       analogOutputs: [..._engine!.analogOutputImage],
       powerFlow: trace.rungs,

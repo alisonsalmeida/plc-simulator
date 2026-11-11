@@ -28,6 +28,7 @@ class BoxCell extends StatelessWidget {
     required this.online,
     required this.powered,
     required this.onTap,
+    this.lit = false,
   });
 
   final Instruction instruction;
@@ -41,6 +42,9 @@ class BoxCell extends StatelessWidget {
 
   /// Whether power flows out of the instruction (word boxes are highlighted by it).
   final bool powered;
+
+  /// Whether the whole rung is energized (the rung wire through the box is drawn green).
+  final bool lit;
   final VoidCallback? onTap;
 
   ElementAddress get _element => (instruction as BoxInstruction).element;
@@ -172,12 +176,12 @@ class BoxCell extends StatelessWidget {
                   Positioned(
                     left: _boxW,
                     width: boxCellW - _boxW,
-                    top: boxWireY,
-                    height: 1,
-                    child: const ColoredBox(color: LadderStyle.wire),
+                    top: lit ? boxWireY - 0.5 : boxWireY,
+                    height: lit ? 2 : 1,
+                    child: ColoredBox(color: lit ? LadderStyle.energized : LadderStyle.wire),
                   )
                 else ...[
-                  _stub(firstStub, boxWireY, _bit(firstBit), continues: true),
+                  _stub(firstStub, boxWireY, _bit(firstBit), continues: true, lit: lit),
                   _stub(secondStub, boxWireY + 2 * _rowH, _bit(secondBit), continues: false),
                 ],
               ]),
@@ -256,7 +260,7 @@ class BoxCell extends StatelessWidget {
 
   /// Output stub at [y]: a short wire and the `(XX)` label, green when its bit is 1. The
   /// stub of the rung wire ([continues]) runs on to the cell edge.
-  Widget _stub(String label, double y, bool on, {required bool continues}) => Positioned(
+  Widget _stub(String label, double y, bool on, {required bool continues, bool lit = false}) => Positioned(
         left: _boxW,
         top: y - _rowH / 2,
         width: boxCellW - _boxW,
@@ -265,9 +269,9 @@ class BoxCell extends StatelessWidget {
           Positioned(
             left: 0,
             width: continues ? boxCellW - _boxW : _stubGap + 2,
-            top: _rowH / 2,
-            height: 1,
-            child: const ColoredBox(color: LadderStyle.wire),
+            top: lit ? _rowH / 2 - 0.5 : _rowH / 2,
+            height: lit ? 2 : 1,
+            child: ColoredBox(color: lit ? LadderStyle.energized : LadderStyle.wire),
           ),
           Positioned(
             left: _stubGap,
